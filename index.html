@@ -35,6 +35,15 @@
   document.addEventListener('pointerdown', tryFS, true);
 })();
 
+/* ── Save / Options helpers ─────────────────── */
+const SAVE_KEY = 'kbt_save';
+const OPTS_KEY = 'kbt_opts';
+function saveGame(d)  { try { localStorage.setItem(SAVE_KEY, JSON.stringify(d)); } catch(e){} }
+function loadGame()   { try { const s = localStorage.getItem(SAVE_KEY); return s ? JSON.parse(s) : null; } catch(e){ return null; } }
+function deleteSave() { try { localStorage.removeItem(SAVE_KEY); } catch(e){} }
+function saveOpts(o)  { try { localStorage.setItem(OPTS_KEY, JSON.stringify(o)); } catch(e){} }
+function loadOpts()   { try { const s = localStorage.getItem(OPTS_KEY); return s ? JSON.parse(s) : { bgm:true, se:true }; } catch(e){ return { bgm:true, se:true }; } }
+
 /* ── Layout ────────────────────────────────── */
 const W        = 390;
 const H        = 844;
@@ -108,6 +117,124 @@ const CHARM_DEFS = [
 ];
 
 /* ══════════════════════════════════════════════ */
+class TitleScene extends Phaser.Scene {
+  constructor() { super({ key: 'TitleScene' }); }
+
+  create() {
+    this._opts    = loadOpts();
+    this._hasSave = !!loadGame();
+
+    /* ── PLEASE TAP ── */
+    this._tapObjs = [];
+    this._tapObjs.push(this.add.rectangle(W/2, H/2, W, H, 0x060c08).setDepth(0));
+    this._tapObjs.push(this.add.text(W/2, H/2 - 110, '吉備津彦', {
+      fontSize:'44px', color:'#ddcc44', fontFamily:'serif', fontStyle:'bold', stroke:'#000', strokeThickness:6
+    }).setOrigin(0.5).setDepth(1));
+    this._tapObjs.push(this.add.text(W/2, H/2 - 42, '鬼　退　治', {
+      fontSize:'28px', color:'#bb8822', fontFamily:'serif'
+    }).setOrigin(0.5).setDepth(1));
+    this._tapLbl = this.add.text(W/2, H/2 + 120, 'PLEASE  TAP', {
+      fontSize:'20px', color:'#88ffcc', fontFamily:'Arial'
+    }).setOrigin(0.5).setDepth(1);
+    this._tapObjs.push(this._tapLbl);
+    this._blinkTw = this.tweens.add({ targets: this._tapLbl, alpha: 0.1, yoyo: true, repeat: -1, duration: 700 });
+
+    /* ── Title menu ── */
+    this._titleObjs = [];
+    this._titleObjs.push(this.add.rectangle(W/2, H/2, W, H, 0x060c08).setDepth(0));
+    this._titleObjs.push(this.add.text(W/2, 170, '吉備津彦  鬼退治', {
+      fontSize:'26px', color:'#ddcc44', fontFamily:'serif', fontStyle:'bold', stroke:'#000', strokeThickness:5
+    }).setOrigin(0.5).setDepth(1));
+    this._menuBtns = [
+      { label:'はじめから', key:'new',  y:360 },
+      { label:'つづきから', key:'cont', y:470 },
+      { label:'オプション', key:'opts', y:580 },
+    ].map(item => {
+      const grey = item.key === 'cont' && !this._hasSave;
+      const bg  = this.add.rectangle(W/2, item.y, 280, 70, grey ? 0x111111 : 0x0f1e10)
+                    .setStrokeStyle(2, grey ? 0x333333 : 0x44aa44).setDepth(1);
+      const txt = this.add.text(W/2, item.y, item.label, {
+        fontSize:'22px', color: grey ? '#444444' : '#cceecc', fontFamily:'serif'
+      }).setOrigin(0.5).setDepth(2);
+      this._titleObjs.push(bg, txt);
+      return { bg, txt, key: item.key, grey, y: item.y };
+    });
+
+    /* ── Options ── */
+    this._optsObjs = [];
+    this._optsObjs.push(this.add.rectangle(W/2, H/2, W, H, 0x060c08).setDepth(0));
+    this._optsObjs.push(this.add.text(W/2, 210, 'オプション', {
+      fontSize:'26px', color:'#ffdd88', fontFamily:'serif', fontStyle:'bold'
+    }).setOrigin(0.5).setDepth(1));
+    this._optBtns = [
+      { label:'BGM', key:'bgm', y:370 },
+      { label:'SE',  key:'se',  y:480 },
+    ].map(item => {
+      const bg  = this.add.rectangle(W/2, item.y, 280, 70, 0x0a1822).setStrokeStyle(2, 0x336688).setDepth(1);
+      const lbl = this.add.text(W/2 - 70, item.y, item.label, { fontSize:'22px', color:'#aaccff', fontFamily:'serif' }).setOrigin(0.5).setDepth(2);
+      const val = this.add.text(W/2 + 70, item.y, 'ON', { fontSize:'22px', color:'#44ffaa', fontFamily:'Arial', fontStyle:'bold' }).setOrigin(0.5).setDepth(2);
+      this._optsObjs.push(bg, lbl, val);
+      return { bg, lbl, val, key: item.key, y: item.y };
+    });
+    this._optsCnl = this.add.text(W/2, 630, '戻る', { fontSize:'18px', color:'#667766', fontFamily:'Arial' }).setOrigin(0.5).setDepth(2);
+    this._optsObjs.push(this._optsCnl);
+
+    this.input.on('pointerdown', p => this._tap(p));
+    this._setPhase('tap');
+  }
+
+  _setPhase(phase) {
+    this._phase = phase;
+    [...this._tapObjs, ...this._titleObjs, ...this._optsObjs].forEach(o => o.setAlpha(0));
+    if (phase === 'tap') {
+      this._tapObjs.forEach(o => o.setAlpha(1));
+      this._blinkTw.resume();
+    } else if (phase === 'title') {
+      this._blinkTw.pause();
+      this._titleObjs.forEach(o => o.setAlpha(1));
+    } else if (phase === 'opts') {
+      this._blinkTw.pause();
+      this._optsObjs.forEach(o => o.setAlpha(1));
+      this._refreshOpts();
+    }
+  }
+
+  _refreshOpts() {
+    for (const b of this._optBtns) {
+      const on = this._opts[b.key];
+      b.val.setText(on ? 'ON' : 'OFF').setStyle({ color: on ? '#44ffaa' : '#aa4444', fontSize:'22px', fontFamily:'Arial', fontStyle:'bold' });
+    }
+  }
+
+  _tap(ptr) {
+    const { x, y } = ptr;
+    if (this._phase === 'tap') { this._setPhase('title'); return; }
+    if (this._phase === 'title') {
+      for (const btn of this._menuBtns) {
+        if (Math.abs(y - btn.y) < 38 && Math.abs(x - W/2) < 145) {
+          if (btn.grey) return;
+          if (btn.key === 'new')  { deleteSave(); this.scene.start('MainScene', { type:'new' }); }
+          if (btn.key === 'cont') { this.scene.start('MainScene', { type:'continue' }); }
+          if (btn.key === 'opts') { this._setPhase('opts'); }
+          return;
+        }
+      }
+    }
+    if (this._phase === 'opts') {
+      if (Math.abs(y - this._optsCnl.y) < 28) { this._setPhase('title'); return; }
+      for (const btn of this._optBtns) {
+        if (Math.abs(y - btn.y) < 38) {
+          this._opts[btn.key] = !this._opts[btn.key];
+          saveOpts(this._opts);
+          this._refreshOpts();
+          return;
+        }
+      }
+    }
+  }
+}
+
+/* ══════════════════════════════════════════════ */
 class MainScene extends Phaser.Scene {
   constructor() { super({ key: 'MainScene' }); }
 
@@ -125,6 +252,24 @@ class MainScene extends Phaser.Scene {
     this.slotCharms  = new Array(9).fill(null);
     this.charmTimers = new Array(9).fill(0);
     this.ownedCharms = CHARM_DEFS.map(c => ({ ...c }));
+
+    // load save on continue
+    const _initType = (this.scene.settings.data || {}).type;
+    if (_initType === 'continue') {
+      const sv = loadGame();
+      if (sv) {
+        this.wave          = sv.wave;
+        this.kbHP          = sv.kbHP;
+        this.kbHPMax       = sv.kbHPMax;
+        this.slashDmg      = sv.slashDmg;
+        this.totalExp      = sv.totalExp;
+        this.unlockedSlots = sv.unlockedSlots;
+        this.ownedCharms   = sv.ownedCharms;
+        this.slotCharms    = sv.slotCharmIds.map(id => id ? (this.ownedCharms.find(c => c.id === id) || null) : null);
+        this.charmTimers   = sv.charmTimers;
+      }
+    }
+
     this._cpVis = false; this._upgVis = false;
 
     this._bg();    this._kb();    this._hdr();
@@ -347,7 +492,7 @@ class MainScene extends Phaser.Scene {
   /* ── Input ──────────────────────────────── */
   _tap(ptr) {
     const { x, y } = ptr;
-    if (this.dead) { this.scene.restart(); return; }
+    if (this.dead) { this.scene.start('MainScene', { type:'new' }); return; }
     if (this._upgVis) { this._upgTap(x, y); return; }
     if (this._cpVis)  { this._cpTap(x, y);  return; }
     if (this.phase === 'result') { this._resTap(x, y); return; }
@@ -692,6 +837,7 @@ class MainScene extends Phaser.Scene {
   _waveClear() {
     this.waveDone = true;
     if (this.unlockedSlots < 9) { this.unlockedSlots++; this._gridUp(); }
+    this._saveGame();
     this._ov('WAVE CLEAR!', '#ffff44', `WAVE ${this.wave} 撃退成功！`);
     this.time.delayedCall(1800, () => { this._ovHide(); this._resOpen(); });
   }
@@ -703,7 +849,7 @@ class MainScene extends Phaser.Scene {
     this._gridUp();
   }
 
-  _gameOver() { this.dead = true; this._ov('GAME OVER', '#ff4444', 'タップしてリスタート'); }
+  _gameOver() { this.dead = true; deleteSave(); this._ov('GAME OVER', '#ff4444', 'タップしてリスタート'); }
 
   _ov(title, color, sub) {
     this.ovBg.setAlpha(0.55);
@@ -711,6 +857,21 @@ class MainScene extends Phaser.Scene {
     this.ovSub.setText(sub).setAlpha(1);
   }
   _ovHide() { this.ovBg.setAlpha(0); this.ovTitle.setAlpha(0); this.ovSub.setAlpha(0); }
+
+  /* ── Save ───────────────────────────────── */
+  _saveGame() {
+    saveGame({
+      wave:          this.wave,
+      kbHP:          this.kbHP,
+      kbHPMax:       this.kbHPMax,
+      slashDmg:      this.slashDmg,
+      totalExp:      this.totalExp,
+      unlockedSlots: this.unlockedSlots,
+      ownedCharms:   this.ownedCharms.map(c => ({ ...c })),
+      slotCharmIds:  this.slotCharms.map(c => c ? c.id : null),
+      charmTimers:   [...this.charmTimers],
+    });
+  }
 
   /* ── UI refresh ─────────────────────────── */
   _hdrUp() {
@@ -747,7 +908,7 @@ class MainScene extends Phaser.Scene {
         gfx.clear();
         const fillHeight = cellHeight * r;
         const fillY = cellY + cellHeight - fillHeight;
-        gfx.fillStyle(attributeColor, 0.85);
+        gfx.fillStyle(attributeColor, 0.6);
         gfx.fillRect(cellX, fillY, cellWidth, fillHeight);
         bdr.setStrokeStyle(2, ready ? 0x44ffaa : (r > 0.05 ? attributeColor : 0x334433));
         const pct = Math.floor(r * 100);
@@ -772,7 +933,7 @@ class MainScene extends Phaser.Scene {
     gfx.clear();
     const fillHeight = cellHeight * chargeRatio;
     const fillY = cellY + cellHeight - fillHeight;
-    gfx.fillStyle(attributeColor, 0.85);
+    gfx.fillStyle(attributeColor, 0.6);
     gfx.fillRect(cellX, fillY, cellWidth, fillHeight);
     this.cBdr[idx].setStrokeStyle(2, ready ? 0x44ffaa : (r > 0.05 ? attributeColor : 0x334433));
     const pct = Math.floor(r * 100);
@@ -786,7 +947,7 @@ new Phaser.Game({
   type: Phaser.AUTO,
   width: W, height: H,
   backgroundColor: '#000000',
-  scene: [MainScene],
+  scene: [TitleScene, MainScene],
   scale: {
     mode: Phaser.Scale.FIT,
     autoCenter: Phaser.Scale.CENTER_BOTH
