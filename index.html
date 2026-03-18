@@ -867,7 +867,7 @@ class MainScene extends Phaser.Scene {
       this.defeated++; this.totalExp += oni.exp;
       const wasBoss = oni.isBoss;
       this._oniRm(oni);
-      if (wasBoss) { this._stopBossTimers(); if (!this.waveDone) this._waveClear(); }
+      if (wasBoss) { this._stopBossTimers(); if (!this.waveDone) this._waveClearBoss(); }
     }
   }
 
@@ -904,6 +904,34 @@ class MainScene extends Phaser.Scene {
     this._saveGame();
     this._ov('WAVE CLEAR!', '#ffff44', `WAVE ${this.wave} 撃退成功！`);
     this.time.delayedCall(1800, () => { this._ovHide(); this._resOpen(); });
+  }
+
+  _waveClearBoss() {
+    this.waveDone = true;
+    if (this.unlockedSlots < 9) { this.unlockedSlots++; this._gridUp(); }
+    this._saveGame();
+    this._ov('WAVE CLEAR!', '#ffff44', `WAVE ${this.wave} 撃退成功！`);
+    this.time.delayedCall(1800, () => { this._ovHide(); this._bossScenarioFlow(); });
+  }
+
+  _bossScenarioFlow() {
+    if (!SCENARIO) { this._resOpen(); return; }
+    const chap = SCENARIO.chapters[this.chapter - 1];
+    if (!chap) { this._resOpen(); return; }
+
+    // 表示するダイアログを順に積む。kuchisakeが空なら省略
+    const steps = [];
+    if (chap.kuchisake && chap.kuchisake.length > 0) steps.push(chap.kuchisake);
+    if (chap.monologue  && chap.monologue.length  > 0) steps.push(chap.monologue);
+    if (chap.narration  && chap.narration.length  > 0) steps.push(chap.narration);
+
+    if (steps.length === 0) { this._resOpen(); return; }
+
+    const runNext = (i) => {
+      if (i >= steps.length) { this._resOpen(); return; }
+      this._dlgShow(steps[i], () => runNext(i + 1));
+    };
+    runNext(0);
   }
 
   _nextWave() {
