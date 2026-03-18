@@ -229,7 +229,7 @@ class TitleScene extends Phaser.Scene {
 
     this._opBg.setScale(startScale).setY(startY).setAlpha(1);
     this._opLogoBg.clearMask().setAlpha(0);
-    this._opLogo.clearMask().setAlpha(0);
+    this._opLogo.clearMask().setCrop().setAlpha(0);
     this._opCreditTxt.setAlpha(0);
     this._opTapLbl.setAlpha(0);
     if (this._blinkTw) { this._blinkTw.remove(); this._blinkTw = null; }
@@ -256,43 +256,52 @@ class TitleScene extends Phaser.Scene {
   _opZoomComplete() {
     this._opZoomDone = true;
 
-    // 両オブジェクトを表示（マスクで最初は隠す）
+    // 両オブジェクトを表示
     this._opLogoBg.setAlpha(1);
     this._opLogo.setAlpha(1);
 
-    // ① _logoImg のみにグローを付与（黒帯にはかけない）
+    // ① _opLogo のみにグロー付与
+    //    ※ preFX と GeometryMask は同一オブジェクトに併用不可（RTT描画競合）
+    //    → ロゴは setCrop() でワイプ、黒帯は GeometryMask でワイプ
     if (this._opLogo.preFX) {
       this._opLogo.preFX.clear();
       this._opLogo.preFX.addGlow(0xffffff, 5, 0, false, 0.1, 20);
     }
 
-    // ② ワイプ範囲を計算（黒帯高さとロゴ高さの大きい方）
-    const logoH  = this._opLogo.displayHeight;
-    const totalH = Math.max(H * 0.28, logoH);
-    const topY   = H * 0.35 - totalH / 2;
+    // ② ワイプ範囲（黒帯高さとロゴ表示高さの大きい方）
+    const logoDispH = this._opLogo.displayHeight;
+    const logoTexH  = this._opLogo.height;  // テクスチャの自然高さ
+    const logoTexW  = this._opLogo.width;
+    const totalH    = Math.max(H * 0.28, logoDispH);
+    const topY      = H * 0.35 - totalH / 2;
 
-    // ③ 共通の Graphics マスクを作成し両オブジェクトに個別に setMask()
+    // ③ 黒帯 → GeometryMask でワイプ
     const maskGfx = this.make.graphics({ add: false });
     const mask    = maskGfx.createGeometryMask();
     this._opLogoBg.setMask(mask);
-    this._opLogo.setMask(mask);
 
-    // ④ マスク height を 0 → totalH へ 2 秒でトゥイーン
+    // ロゴ → setCrop(0, 0, w, 0) で最初は非表示（preFX と共存可能）
+    this._opLogo.setCrop(0, 0, logoTexW, 0);
+
+    // ④ 2秒でワイプ
     this.tweens.addCounter({
       from: 0, to: totalH,
       duration: 2000,
       ease: 'Sine.easeIn',
       onUpdate: (tween) => {
         const h = tween.getValue();
+        // 黒帯マスクを更新
         maskGfx.clear();
         maskGfx.fillStyle(0xffffff);
         maskGfx.fillRect(0, topY, W, h);
+        // ロゴのcropを更新（表示高さ比率をテクスチャ高さに変換）
+        const cropH = Math.min(logoTexH, (h / logoDispH) * logoTexH);
+        this._opLogo.setCrop(0, 0, logoTexW, cropH);
       },
       onComplete: () => {
-        // マスクを外して Graphics を破棄
         this._opLogoBg.clearMask();
-        this._opLogo.clearMask();
         maskGfx.destroy();
+        this._opLogo.setCrop(); // crop解除
         this._opLogoComplete();
       }
     });
@@ -317,7 +326,7 @@ class TitleScene extends Phaser.Scene {
     this._phase = phase;
     // OP関連を隠す
     this._opLogoBg.clearMask().setAlpha(0);
-    this._opLogo.clearMask().setAlpha(0);
+    this._opLogo.clearMask().setCrop().setAlpha(0);
     [this._opBg, this._opCreditTxt, this._opTapLbl].forEach(o => o.setAlpha(0));
     if (this._blinkTw) { this._blinkTw.remove(); this._blinkTw = null; }
     // title/optsを全非表示にしてから対象だけ表示
