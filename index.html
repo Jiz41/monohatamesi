@@ -235,7 +235,7 @@ class TitleScene extends Phaser.Scene {
     this._opLogo.clearMask().setCrop().setAlpha(0);
     this._opCreditTxt.setAlpha(0);
     this._opTapLbl.setAlpha(0);
-    if (this._blinkTw) { this._blinkTw.remove(); this._blinkTw = null; }
+    this._blinkStop();
 
     // ズームアウトトゥイーン（3〜4秒）：coverスケールまで戻して全景表示
     this._zoomTween = this.tweens.add({
@@ -302,20 +302,23 @@ class TitleScene extends Phaser.Scene {
   _opLogoComplete() {
     this._opCreditTxt.setAlpha(1);
     this._opTapLbl.setAlpha(1);
-    if (this._blinkTw) { this._blinkTw.remove(); this._blinkTw = null; }
-    // preFX有効オブジェクトへのalpha tween干渉を避けるため
-    // プレーンオブジェクトをtweenしてonUpdate内でsetAlpha()を明示的に呼ぶ
-    const blinkVal = { v: 1 };
-    this._blinkTw = this.tweens.add({
-      targets:  blinkVal,
-      v:        0.1,
-      yoyo:     true,
-      repeat:   -1,
-      duration: 700,
-      ease:     'Linear',
-      onUpdate: () => { this._opTapLbl.setAlpha(blinkVal.v); }
+    this._blinkStop();
+    // preFX環境ではtweenのalpha操作が効かないため time.addEvent で直接 setAlpha を交互に呼ぶ
+    let vis = true;
+    this._blinkTw = this.time.addEvent({
+      delay: 600, repeat: -1,
+      callback: () => {
+        vis = !vis;
+        this._opTapLbl.setAlpha(vis ? 1 : 0.1);
+      }
     });
     this._phase = 'tap';
+  }
+
+  _blinkStop() {
+    if (!this._blinkTw) return;
+    this._blinkTw.destroy();
+    this._blinkTw = null;
   }
 
   /* ── フェーズ切替（title / opts） ──────── */
@@ -325,7 +328,7 @@ class TitleScene extends Phaser.Scene {
     this._opLogoBg.clearMask().setAlpha(0);
     this._opLogo.clearMask().setCrop().setAlpha(0);
     [this._opBg, this._opCreditTxt, this._opTapLbl].forEach(o => o.setAlpha(0));
-    if (this._blinkTw) { this._blinkTw.remove(); this._blinkTw = null; }
+    this._blinkStop();
     // title/optsを全非表示にしてから対象だけ表示
     [...this._titleObjs, ...this._optsObjs].forEach(o => o.setAlpha(0));
     if (phase === 'title') {
