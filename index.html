@@ -784,8 +784,10 @@ class MainScene extends Phaser.Scene {
   }
 
   _spawnOgre() {
-    // WAVE8-9：大鬼（中ボス）+ 小鬼の無限湧き（中鬼なし）
-    this._makeOni(W + 36, BATTLE_H / 2, 52, 78, 0x441100, 0xff8833, '【大鬼】', '13px', '#ffcc88', OGRE_HP, OGRE_SPD, OGRE_DMG, 66, 60, true, 'none');
+    // WAVE8-9：大鬼（isBoss=false）+ 小鬼の無限湧き、全滅でWAVEクリア
+    this._makeOni(W + 36, BATTLE_H / 2, 52, 78, 0x441100, 0xff8833, '【大鬼】', '13px', '#ffcc88', OGRE_HP, OGRE_SPD, OGRE_DMG, 66, 60, false, 'none');
+    const ogre = this.onis.getLast(true);
+    ogre.isOgre = true;
     this._bossSpawnTimerKobuki = this.time.addEvent({
       delay: 1500, loop: true,
       callback: () => {
@@ -885,13 +887,14 @@ class MainScene extends Phaser.Scene {
     if (oni.hp <= 0) {
       this.defeated++; this.totalExp += oni.exp;
       const wasBoss = oni.isBoss;
+      const wasOgre = oni.isOgre;
       this._oniRm(oni);
+      // 大鬼撃破：スポーンタイマー停止のみ。残小鬼も全滅したらupdateループでWAVEクリア
+      if (wasOgre) this._stopBossTimers();
+      // ネームドボス撃破：WAVEクリアフロー発火
       if (wasBoss) {
         this._stopBossTimers();
-        if (!this.waveDone) {
-          if (this.wave % 10 === 0) this._waveClearBoss();
-          else this._waveClear();
-        }
+        if (!this.waveDone) this._waveClearBoss();
       }
     }
   }
