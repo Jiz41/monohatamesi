@@ -247,6 +247,8 @@ class TitleScene extends Phaser.Scene {
   _startTerminal() {
     this._phase      = 'terminal';
     this._termReady  = false;
+    [this._termBg, this._termScroll, this._termTypeLine, this._termCredit, this._termPush]
+      .forEach(o => o.setVisible(true));
     this._termScroll.setText('').setAlpha(1);
     this._termTypeLine.setText('').setAlpha(0);
     this._termCredit.setText('').setAlpha(0);
@@ -353,7 +355,7 @@ class TitleScene extends Phaser.Scene {
   _terminalHide() {
     if (this._termPushTw) { this._termPushTw.destroy(); this._termPushTw = null; }
     [this._termBg, this._termScroll, this._termTypeLine, this._termCredit, this._termPush]
-      .forEach(o => o.setAlpha(0));
+      .forEach(o => o.setAlpha(0).setVisible(false));
   }
 
   /* ── OP演出 ─────────────────────────────── */
