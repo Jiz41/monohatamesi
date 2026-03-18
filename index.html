@@ -163,13 +163,11 @@ class TitleScene extends Phaser.Scene {
       fontSize: '13px', color: '#998877', fontFamily: 'serif'
     }).setOrigin(0.5).setDepth(2).setAlpha(0);
 
-    /* ── 画面押下セヨ（tween は _opLogoComplete で毎回生成） ── */
+    /* ── 画面押下セヨ ── */
     this._opTapLbl = this.add.text(W / 2, H * 0.68, '画面押下セヨ', {
-      fontSize: '28px', color: '#88ffcc', fontFamily: 'serif'
+      fontSize: '28px', color: '#88ffcc', fontFamily: 'serif',
+      shadow: { offsetX: 0, offsetY: 0, color: '#ffffff', blur: 10, fill: true }
     }).setOrigin(0.5).setDepth(2).setAlpha(0);
-    if (this._opTapLbl.preFX) {
-      this._opTapLbl.preFX.addGlow(0xffffff, 2, 0, false, 0.1, 10);
-    }
     this._blinkTw = null;
 
     /* ── タイトルメニュー ── */
@@ -303,14 +301,13 @@ class TitleScene extends Phaser.Scene {
     this._opCreditTxt.setAlpha(1);
     this._opTapLbl.setAlpha(1);
     this._blinkStop();
-    // preFX環境ではtweenのalpha操作が効かないため time.addEvent で直接 setAlpha を交互に呼ぶ
-    let vis = true;
-    this._blinkTw = this.time.addEvent({
-      delay: 600, repeat: -1,
-      callback: () => {
-        vis = !vis;
-        this._opTapLbl.setAlpha(vis ? 1 : 0.1);
-      }
+    this._blinkTw = this.tweens.add({
+      targets:  this._opTapLbl,
+      alpha:    { from: 1, to: 0.1 },
+      yoyo:     true,
+      repeat:   -1,
+      duration: 900,
+      ease:     'Sine.easeInOut'
     });
     this._phase = 'tap';
   }
