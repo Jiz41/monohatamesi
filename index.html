@@ -252,39 +252,48 @@ class TitleScene extends Phaser.Scene {
     this._termCredit.setText('').setAlpha(0);
     this._termPush.setAlpha(0);
 
-    const rand = () => {
-      const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*()_+-=[]{}|;:,.<>?';
+    const rand = (min = 24, max = 48) => {
+      const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*_+-=|;:.<>?';
       let s = '';
-      const len = 30 + Math.floor(Math.random() * 40);
+      const len = min + Math.floor(Math.random() * (max - min));
       for (let i = 0; i < len; i++) s += chars[Math.floor(Math.random() * chars.length)];
       return s;
     };
 
-    const keywords = [
-      'KAYOU_TEIRINN', 'MUSHUN_REAGAN', 'KAYOUTOUIDOU',
-      'SYS.INIT', 'LOAD_SECTOR', 'MEM_ALLOC', 'EXEC_BOOT',
+    // 固定の意味ある行＋ランダム行を混在
+    const fixedLines = [
+      'USER: MUSHYN_REAGAN',
+      'AUTHENTICATED',
+      'ACCESSING_SYSTEM...',
+      'LOADING_ARCHIVE... OK',
+      'GATE_STATUS: OPEN',
+      'COUNT: UNKNOWN',
+      'WARNING: BOUNDARY_BREACH',
+      'INITIALIZING...',
+      'KAYOU_TEIRIN... CONFIRMED',
+      'MUSHYN_REAGAN... ONLINE',
     ];
 
     const lines = [];
-    for (let i = 0; i < 28; i++) {
-      if (i % 5 === 0) {
-        lines.push(keywords[Math.floor(Math.random() * keywords.length)] + '  ' + rand().slice(0, 20));
+    let fixedIdx = 0;
+    for (let i = 0; i < 32; i++) {
+      if (i < 3 || (i % 4 === 0 && fixedIdx < fixedLines.length)) {
+        lines.push(fixedLines[fixedIdx++] || rand());
       } else {
         lines.push(rand());
       }
     }
 
-    // 1行ずつ60msで流す
+    // 1行ずつ流す
     let idx = 0;
     const addLine = () => {
       if (idx >= lines.length) return;
-      const current = this._termScroll.text;
-      const rows = current ? current.split('\n') : [];
+      const rows = this._termScroll.text ? this._termScroll.text.split('\n') : [];
       rows.push(lines[idx++]);
-      if (rows.length > 20) rows.shift();
+      if (rows.length > 18) rows.shift();
       this._termScroll.setText(rows.join('\n'));
     };
-    const scrollTimer = this.time.addEvent({ delay: 80, repeat: lines.length - 1, callback: addLine });
+    const scrollTimer = this.time.addEvent({ delay: 90, repeat: lines.length - 1, callback: addLine });
 
     // 3.5秒後：スクロール停止→タイプライター開始
     this.time.delayedCall(3500, () => {
@@ -331,13 +340,13 @@ class TitleScene extends Phaser.Scene {
   }
 
   _termShowPush() {
-    this._termPush.setAlpha(1);
     this._termReady = true;
-    // 点滅
-    const pv = { v: 1 };
-    this._termPushTw = this.tweens.add({
-      targets: pv, v: 0.1, yoyo: true, repeat: -1, duration: 500, ease: 'Linear',
-      onUpdate: () => { this._termPush.setAlpha(pv.v); }
+    // time.addEventでalpha切り替え（tweenのonUpdateより確実）
+    let vis = true;
+    this._termPush.setAlpha(1);
+    this._termPushTw = this.time.addEvent({
+      delay: 500, repeat: -1,
+      callback: () => { vis = !vis; this._termPush.setAlpha(vis ? 1 : 0); }
     });
   }
 
