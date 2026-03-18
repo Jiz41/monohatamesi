@@ -229,7 +229,7 @@ class TitleScene extends Phaser.Scene {
 
     this._opBg.setScale(startScale).setY(startY).setAlpha(1);
     this._opLogoBg.clearMask().setAlpha(0);
-    this._opLogo.clearMask().setAlpha(0);
+    this._opLogo.clearMask().setCrop().setAlpha(0);
     this._opCreditTxt.setAlpha(0);
     this._opTapLbl.setAlpha(0);
     if (this._blinkTw) { this._blinkTw.remove(); this._blinkTw = null; }
@@ -259,13 +259,18 @@ class TitleScene extends Phaser.Scene {
     this._opLogoBg.setAlpha(1);
     this._opLogo.setAlpha(1);
 
-    const totalH = Math.max(H * 0.28, this._opLogo.displayHeight);
-    const topY   = H * 0.35 - totalH / 2;
+    const totalH   = Math.max(H * 0.28, this._opLogo.displayHeight);
+    const topY     = H * 0.35 - totalH / 2;
+    const logoTexW = this._opLogo.width;
+    const logoTexH = this._opLogo.height;
 
+    // 黒帯: GeometryMask でワイプ（不透明なので問題なし）
     const maskGfx = this.make.graphics({ add: false });
     const mask    = maskGfx.createGeometryMask();
     this._opLogoBg.setMask(mask);
-    this._opLogo.setMask(mask);
+
+    // ロゴ: setCrop でワイプ（透明PNG に GeometryMask を使うとRTT背景グレーが出るため不可）
+    this._opLogo.setCrop(0, 0, logoTexW, 0);
 
     this.tweens.addCounter({
       from: 0, to: totalH,
@@ -273,14 +278,18 @@ class TitleScene extends Phaser.Scene {
       ease: 'Sine.easeIn',
       onUpdate: (tween) => {
         const h = tween.getValue();
+        // 黒帯マスク更新
         maskGfx.clear();
         maskGfx.fillStyle(0xffffff);
         maskGfx.fillRect(0, topY, W, h);
+        // ロゴcrop更新（表示高→テクスチャ高に変換）
+        const cropH = Math.min(logoTexH, (h / this._opLogo.displayHeight) * logoTexH);
+        this._opLogo.setCrop(0, 0, logoTexW, cropH);
       },
       onComplete: () => {
         this._opLogoBg.clearMask();
-        this._opLogo.clearMask();
         maskGfx.destroy();
+        this._opLogo.setCrop();
         this._opLogoComplete();
       }
     });
@@ -305,7 +314,7 @@ class TitleScene extends Phaser.Scene {
     this._phase = phase;
     // OP関連を隠す
     this._opLogoBg.clearMask().setAlpha(0);
-    this._opLogo.clearMask().setAlpha(0);
+    this._opLogo.clearMask().setCrop().setAlpha(0);
     [this._opBg, this._opCreditTxt, this._opTapLbl].forEach(o => o.setAlpha(0));
     if (this._blinkTw) { this._blinkTw.remove(); this._blinkTw = null; }
     // title/optsを全非表示にしてから対象だけ表示
