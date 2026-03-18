@@ -257,8 +257,11 @@ class TitleScene extends Phaser.Scene {
   _opZoomComplete() {
     this._opZoomDone = true;
 
-    // preFX 残留リセット（ワイプ中は preFX と GeometryMask を併用しない）
-    if (this._opLogo.preFX) this._opLogo.preFX.clear();
+    // ワイプ開始前にグローを付与
+    if (this._opLogo.preFX) {
+      this._opLogo.preFX.clear();
+      this._opLogo.preFX.addGlow(0xffffff, 5, 0, false, 0.1, 20);
+    }
 
     // Container を表示状態にしてマスクで隠す
     this._opLogoContainer.setAlpha(1);
@@ -290,12 +293,8 @@ class TitleScene extends Phaser.Scene {
     });
   }
 
-  // ロゴイン完了 → グロー付与・クレジット・画面押下セヨ点滅表示
+  // ロゴイン完了 → クレジット・画面押下セヨ点滅表示
   _opLogoComplete() {
-    // ワイプ完了後にグローを付与（preFX はマスク解除後に使用）
-    if (this._opLogo.preFX) {
-      this._opLogo.preFX.addGlow(0xffffff, 5, 0, false, 0.1, 20);
-    }
     this._opCreditTxt.setAlpha(1);
     this._opTapLbl.setAlpha(1);
     // 毎回新規生成することで paused 状態の初期値問題を回避
