@@ -155,17 +155,22 @@ class TitleScene extends Phaser.Scene {
       this._opLogo.setScale((W * 0.75) / this._opLogo.width);
     }
 
+    /* ── ロゴ視認性向上：ロゴ背後の半透明黒帯 ── */
+    this._opLogoBg = this.add.rectangle(W / 2, H * 0.35, W, H * 0.28, 0x000000)
+      .setDepth(1).setAlpha(0);
+
     /* ── 制作クレジット ── */
     this._opCreditTxt = this.add.text(W / 2, H * 0.88, '制作：華耀東夷堂', {
       fontSize: '13px', color: '#998877', fontFamily: 'serif'
     }).setOrigin(0.5).setDepth(2).setAlpha(0);
 
-    /* ── PLEASE TAP ── */
-    this._opTapLbl = this.add.text(W / 2, H * 0.78, 'PLEASE  TAP', {
-      fontSize: '20px', color: '#88ffcc', fontFamily: 'Arial'
+    /* ── 画面押下セヨ ── */
+    this._opTapLbl = this.add.text(W / 2, H * 0.78, '画面押下セヨ', {
+      fontSize: '20px', color: '#88ffcc', fontFamily: 'serif'
     }).setOrigin(0.5).setDepth(2).setAlpha(0);
+    // alpha: { from, to } で開始値を明示し、paused状態でも正しく点滅する
     this._blinkTw = this.tweens.add({
-      targets: this._opTapLbl, alpha: 0.1, yoyo: true, repeat: -1, duration: 700, paused: true
+      targets: this._opTapLbl, alpha: { from: 1, to: 0.1 }, yoyo: true, repeat: -1, duration: 700, paused: true
     });
 
     /* ── タイトルメニュー ── */
@@ -227,6 +232,7 @@ class TitleScene extends Phaser.Scene {
     const startY = H - (this._opBg.height * startScale) / 2;
 
     this._opBg.setScale(startScale).setY(startY).setAlpha(1);
+    this._opLogoBg.setAlpha(0);
     this._opLogo.setX(-200).setAlpha(0);
     this._opCreditTxt.setAlpha(0);
     this._opTapLbl.setAlpha(0);
@@ -253,6 +259,7 @@ class TitleScene extends Phaser.Scene {
   // ズームアウト完了 → ロゴスクロールイン
   _opZoomComplete() {
     this._opZoomDone = true;
+    this._opLogoBg.setAlpha(0.55); // 黒帯を先に表示してロゴを視認しやすく
     this._opLogo.setX(-200).setAlpha(0);
     this.tweens.add({
       targets:  this._opLogo,
@@ -276,7 +283,7 @@ class TitleScene extends Phaser.Scene {
   _setPhase(phase) {
     this._phase = phase;
     // OP関連を隠す
-    [this._opBg, this._opLogo, this._opCreditTxt, this._opTapLbl].forEach(o => o.setAlpha(0));
+    [this._opBg, this._opLogoBg, this._opLogo, this._opCreditTxt, this._opTapLbl].forEach(o => o.setAlpha(0));
     this._blinkTw.pause();
     // title/optsを全非表示にしてから対象だけ表示
     [...this._titleObjs, ...this._optsObjs].forEach(o => o.setAlpha(0));
