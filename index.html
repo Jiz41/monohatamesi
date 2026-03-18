@@ -244,6 +244,7 @@ class MainScene extends Phaser.Scene {
   create() {
     this.kbHP = this.kbHPMax = 300;
     this.wave = 1;
+    this.chapter = 1;
     this.spawned = this.defeated = this.spawnTimer = this.bulTimer = 0;
     this.dead = this.waveDone = this.bossSpawned = false;
     this.phase = 'battle';
@@ -273,6 +274,8 @@ class MainScene extends Phaser.Scene {
       }
     }
 
+    this.chapter = Math.ceil(this.wave / 10);
+
     this._cpVis = false; this._upgVis = false;
     this.dialogActive = false;
     this._dlgLines = []; this._dlgIdx = 0; this._dlgOnComplete = null;
@@ -291,13 +294,9 @@ class MainScene extends Phaser.Scene {
     this.input.on('pointerdown', p => this._tap(p));
     this._hdrUp(); this._gridUp();
 
-    // フェーズ2確認用ダミー台詞
-    if (_initType !== 'continue') {
-      this._dlgShow([
-        { speaker: '温羅',   text: 'この匂い……この匂いじゃ……！！' },
-        { speaker: 'キビツ', text: '……また来たか。何度目だ、これで。' },
-        { speaker: null,     text: 'むかーしむかし、大むかし。' }
-      ], null);
+    // OPENINGシーン：はじめから選択時のみ表示
+    if (_initType === 'new' && SCENARIO && SCENARIO.opening) {
+      this._dlgShow(SCENARIO.opening, null);
     }
   }
 
@@ -777,6 +776,13 @@ class MainScene extends Phaser.Scene {
   }
 
   _spawnBoss() {
+    // 各章末WAVE（10・20・30・40・50）でボス登場台詞を発火
+    if (this.wave % 10 === 0 && SCENARIO) {
+      const chap = SCENARIO.chapters[this.chapter - 1];
+      if (chap && chap.boss_scene) {
+        this._dlgShow(chap.boss_scene, null);
+      }
+    }
     const name = BOSS_NAMES[Phaser.Math.Between(0, 2)];
     const attrPool = ['fire', 'water', 'earth', 'wind'];
     const attr = this.wave >= 2 ? attrPool[Phaser.Math.Between(0, 3)] : 'none';
@@ -861,6 +867,7 @@ class MainScene extends Phaser.Scene {
 
   _nextWave() {
     this.wave++;
+    this.chapter = Math.ceil(this.wave / 10);
     this.spawned = this.defeated = this.spawnTimer = 0;
     this.waveDone = this.bossSpawned = false;
     this._gridUp();
