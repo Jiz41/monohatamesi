@@ -274,12 +274,15 @@ class MainScene extends Phaser.Scene {
     }
 
     this._cpVis = false; this._upgVis = false;
+    this.dialogActive = false;
+    this._dlgLines = []; this._dlgIdx = 0; this._dlgOnComplete = null;
 
     this._bg();    this._kb();    this._hdr();
     this._grid();  this._slash(); this._desc();
     this._superBtn();
     this._ovBuild();  this._resBuild();
     this._cpBuild();  this._upgBuild();
+    this._dlgBuild();
 
     this.onis    = this.add.group();
     this.bullets = this.add.group();
@@ -287,11 +290,21 @@ class MainScene extends Phaser.Scene {
 
     this.input.on('pointerdown', p => this._tap(p));
     this._hdrUp(); this._gridUp();
+
+    // フェーズ2確認用ダミー台詞
+    if (_initType !== 'continue') {
+      this._dlgShow([
+        { speaker: '温羅',   text: 'この匂い……この匂いじゃ……！！' },
+        { speaker: 'キビツ', text: '……また来たか。何度目だ、これで。' },
+        { speaker: null,     text: 'むかーしむかし、大むかし。' }
+      ], null);
+    }
   }
 
   /* ── update ─────────────────────────────── */
   update(_t, dt) {
     if (this.dead || this.waveDone) return;
+    if (this.dialogActive) return;
 
     // combo decay
     if (this.combo > 1.0) {
@@ -495,6 +508,7 @@ class MainScene extends Phaser.Scene {
   /* ── Input ──────────────────────────────── */
   _tap(ptr) {
     const { x, y } = ptr;
+    if (this.dialogActive) { this._dlgNext(); return; }
     if (this.dead) { this.scene.start('MainScene', { type:'new' }); return; }
     if (this._upgVis) { this._upgTap(x, y); return; }
     if (this._cpVis)  { this._cpTap(x, y);  return; }
@@ -942,6 +956,88 @@ class MainScene extends Phaser.Scene {
     const pct = Math.floor(r * 100);
     this.cTxt[idx].setText(`[${an}]${c.name}\n${ready ? '【発動！】' : `${pct}%`}`)
       .setStyle({ color:'#ffffff', fontSize:'11px', align:'center', stroke:'#000', strokeThickness:3 });
+  }
+
+  /* ── Dialog box ─────────────────────────── */
+  _dlgBuild() {
+    // 戦闘エリア下部 120px のオーバーレイ
+    const boxH = 120;
+    const boxCY = BATTLE_H - boxH / 2;   // y=270
+    this._dlgBg = this.add.rectangle(W / 2, boxCY, W, boxH, 0x000000)
+      .setAlpha(0).setDepth(20);
+    // 上端ライン
+    this._dlgLine = this.add.rectangle(W / 2, BATTLE_H - boxH, W, 2, 0x445544)
+      .setAlpha(0).setDepth(20);
+    // 話者名
+    this._dlgSpeakerTxt = this.add.text(14, BATTLE_H - boxH + 10, '', {
+      fontSize: '14px', color: '#ffdd88',
+      fontFamily: 'serif', fontStyle: 'bold',
+      stroke: '#000', strokeThickness: 2
+    }).setAlpha(0).setDepth(21);
+    // 台詞本文
+    this._dlgBodyTxt = this.add.text(14, BATTLE_H - boxH + 30, '', {
+      fontSize: '15px', color: '#ffffff',
+      fontFamily: 'serif',
+      wordWrap: { width: W - 28, useAdvancedWrap: true },
+      stroke: '#000', strokeThickness: 2
+    }).setAlpha(0).setDepth(21);
+    // ▼ インジケーター
+    this._dlgIndTxt = this.add.text(W - 12, BATTLE_H - 10, '▼', {
+      fontSize: '13px', color: '#aaaaaa', fontFamily: 'Arial'
+    }).setOrigin(1, 1).setAlpha(0).setDepth(21);
+    // インジケーターの点滅ツイーン（初期は停止）
+    this._dlgIndTween = this.tweens.add({
+      targets: this._dlgIndTxt,
+      alpha: { from: 0.25, to: 1.0 },
+      yoyo: true, repeat: -1, duration: 550, paused: true
+    });
+  }
+
+  _dlgShow(lines, onComplete) {
+    this._dlgLines = lines;
+    this._dlgIdx = 0;
+    this._dlgOnComplete = onComplete || null;
+    this.dialogActive = true;
+    this._dlgBg.setAlpha(0.92);
+    this._dlgLine.setAlpha(1);
+    this._dlgIndTween.resume();
+    this._dlgRender();
+  }
+
+  _dlgRender() {
+    const line = this._dlgLines[this._dlgIdx];
+    if (line.speaker) {
+      this._dlgSpeakerTxt.setText(line.speaker).setAlpha(1);
+      this._dlgBodyTxt.setY(BATTLE_H - 88).setAlpha(1);
+    } else {
+      this._dlgSpeakerTxt.setAlpha(0);
+      this._dlgBodyTxt.setY(BATTLE_H - 100).setAlpha(1);
+    }
+    this._dlgBodyTxt.setText(line.text);
+  }
+
+  _dlgNext() {
+    this._dlgIdx++;
+    if (this._dlgIdx >= this._dlgLines.length) {
+      this._dlgHide();
+    } else {
+      this._dlgRender();
+    }
+  }
+
+  _dlgHide() {
+    this.dialogActive = false;
+    this._dlgBg.setAlpha(0);
+    this._dlgLine.setAlpha(0);
+    this._dlgSpeakerTxt.setAlpha(0);
+    this._dlgBodyTxt.setAlpha(0);
+    this._dlgIndTxt.setAlpha(0);
+    this._dlgIndTween.pause();
+    if (this._dlgOnComplete) {
+      const cb = this._dlgOnComplete;
+      this._dlgOnComplete = null;
+      cb();
+    }
   }
 }
 
