@@ -187,10 +187,15 @@ class MainScene extends Phaser.Scene {
 
   /* ── Kibitsu ────────────────────────────── */
   _kb() {
-    const h = BATTLE_H * 0.22;      // 72.6px
-    const kx = 65, ky = KB_Y;      // 門の左柱寄り
+    const h = BATTLE_H * 0.22;   // 72.6px
+    const kx = 65, ky = 165;     // 門の左柱寄り・戦闘エリア中央
     this.kbSpr = this.add.image(kx, ky, 'kibitsu').setOrigin(0.5, 0.5).setDepth(3);
-    this.kbSpr.setDisplaySize(this.kbSpr.width * h / this.kbSpr.height, h);
+    const naturalH = this.kbSpr.height || 1;
+    this.kbSpr.setDisplaySize(this.kbSpr.width * h / naturalH, h);
+    this.kbSpr.setPosition(kx, ky); // setDisplaySize後に位置を再確定
+    // 弾発射基点（スプライト右端）を保存
+    this._kbSX = kx + this.kbSpr.displayWidth / 2;
+    this._kbSY = ky;
     const barY = ky - h / 2 - 8;
     this.add.rectangle(kx - 27, barY, 54, 9, 0x220000).setOrigin(0, 0.5).setDepth(4);
     this.kbHpBar = this.add.rectangle(kx - 27, barY, 54, 9, 0x22dd55).setOrigin(0, 0.5).setDepth(4);
@@ -642,22 +647,22 @@ class MainScene extends Phaser.Scene {
       this._spell(front, c.dmg, 0x44bbff, c.attr);
 
     } else if (c.id === 'pierce') {
-      const dx = front.x - KB_X, dy = front.y - KB_Y;
+      const dx = front.x - this._kbSX, dy = front.y - this._kbSY;
       const ang = Math.atan2(dy, dx);
       for (const oni of list) {
-        let d = Math.abs(Math.atan2(oni.y - KB_Y, oni.x - KB_X) - ang);
+        let d = Math.abs(Math.atan2(oni.y - this._kbSY, oni.x - this._kbSX) - ang);
         if (d > Math.PI) d = 2 * Math.PI - d;
         if (d < 0.35) this._oniDmg(oni, c.dmg, c.attr);
       }
       this._beamFx(ang);
 
     } else if (c.id === 'scatter') {
-      const dx = front.x - KB_X, dy = front.y - KB_Y;
+      const dx = front.x - this._kbSX, dy = front.y - this._kbSY;
       const base = Math.atan2(dy, dx);
       const spread = Math.PI / 5;
       for (let i = 0; i < 5; i++) {
         const ang = base + spread * ((i / 4) - 0.5) * 2;
-        const b = this.add.circle(KB_X + KB_W/2 + 4, KB_Y, 7, 0xff88aa).setDepth(3);
+        const b = this.add.circle(this._kbSX, this._kbSY, 7, 0xff88aa).setDepth(3);
         b.vx = BUL_SPD * Math.cos(ang); b.vy = BUL_SPD * Math.sin(ang); b.dmg = c.dmg; b.attr = c.attr;
         this.bullets.add(b);
       }
@@ -691,10 +696,10 @@ class MainScene extends Phaser.Scene {
       this._rootFx(front);
 
     } else if (c.id === 'slash') {
-      const dx = front.x - KB_X, dy = front.y - KB_Y;
+      const dx = front.x - this._kbSX, dy = front.y - this._kbSY;
       const base = Math.atan2(dy, dx);
       for (const oni of list) {
-        let d = Math.abs(Math.atan2(oni.y - KB_Y, oni.x - KB_X) - base);
+        let d = Math.abs(Math.atan2(oni.y - this._kbSY, oni.x - this._kbSX) - base);
         if (d > Math.PI) d = 2 * Math.PI - d;
         if (d < 0.6) this._oniDmg(oni, c.dmg, c.attr);
       }
@@ -726,24 +731,26 @@ class MainScene extends Phaser.Scene {
 
   _spell(t, dmg, col, attr = 'none') {
     if (!t?.active) return;
-    const dx = t.x - KB_X, dy = t.y - KB_Y, len = Math.hypot(dx, dy) || 1;
-    const b = this.add.circle(KB_X + KB_W/2 + 4, KB_Y, 8, col || 0x44bbff).setDepth(3);
+    const sx = this._kbSX, sy = this._kbSY;
+    const dx = t.x - sx, dy = t.y - sy, len = Math.hypot(dx, dy) || 1;
+    const b = this.add.circle(sx, sy, 8, col || 0x44bbff).setDepth(3);
     b.vx = BUL_SPD * dx / len; b.vy = BUL_SPD * dy / len; b.dmg = dmg; b.attr = attr;
     this.bullets.add(b);
   }
 
   _beamFx(ang) {
+    const sx = this._kbSX, sy = this._kbSY;
     const g = this.add.graphics().setDepth(8);
     g.lineStyle(5, 0xffff66, 0.9);
-    g.beginPath(); g.moveTo(KB_X + KB_W/2, KB_Y);
-    g.lineTo(KB_X + KB_W/2 + Math.cos(ang) * 500, KB_Y + Math.sin(ang) * 500);
+    g.beginPath(); g.moveTo(sx, sy);
+    g.lineTo(sx + Math.cos(ang) * 500, sy + Math.sin(ang) * 500);
     g.strokePath();
     this.tweens.add({ targets: g, alpha: 0, duration: 300, onComplete: () => g.destroy() });
   }
 
   _burstFx() {
     const g = this.add.graphics().setDepth(8);
-    g.fillStyle(0xff5500, 0.5); g.fillCircle(KB_X + 90, KB_Y, 100);
+    g.fillStyle(0xff5500, 0.5); g.fillCircle(this._kbSX + 80, this._kbSY, 100);
     this.tweens.add({ targets: g, alpha: 0, scaleX: 1.5, scaleY: 1.5, duration: 350, onComplete: () => g.destroy() });
   }
 
@@ -778,22 +785,24 @@ class MainScene extends Phaser.Scene {
   }
 
   _slashWindFx(base) {
+    const sx = this._kbSX, sy = this._kbSY;
     const g = this.add.graphics().setDepth(8);
     g.lineStyle(4, 0x99ffaa, 0.85);
     for (let i = -2; i <= 2; i++) {
       const a = base + i * 0.12;
       g.beginPath();
-      g.moveTo(KB_X + KB_W/2, KB_Y);
-      g.lineTo(KB_X + KB_W/2 + Math.cos(a) * 340, KB_Y + Math.sin(a) * 340);
+      g.moveTo(sx, sy);
+      g.lineTo(sx + Math.cos(a) * 340, sy + Math.sin(a) * 340);
       g.strokePath();
     }
     this.tweens.add({ targets: g, alpha: 0, duration: 250, onComplete: () => g.destroy() });
   }
 
   _blowFx() {
+    const sx = this._kbSX;
     const g = this.add.graphics().setDepth(8);
     g.lineStyle(6, 0xccffee, 0.8);
-    g.beginPath(); g.moveTo(KB_X + KB_W/2, 0); g.lineTo(KB_X + KB_W/2, BATTLE_H);
+    g.beginPath(); g.moveTo(sx, 0); g.lineTo(sx, BATTLE_H);
     g.strokePath();
     this.tweens.add({ targets: g, alpha: 0, scaleX: 3, duration: 300, onComplete: () => g.destroy() });
   }
@@ -979,8 +988,9 @@ class MainScene extends Phaser.Scene {
     if (!list.length) return;
     const t = list.reduce((a, b) => a.x < b.x ? a : b);
     if (t.x - KB_X > BUL_RNG) return;
-    const dx = t.x - KB_X, dy = t.y - KB_Y, len = Math.hypot(dx, dy) || 1;
-    const b = this.add.circle(KB_X + KB_W/2 + 4, KB_Y, 8, 0x44bbff).setDepth(3);
+    const sx = this._kbSX, sy = this._kbSY;
+    const dx = t.x - sx, dy = t.y - sy, len = Math.hypot(dx, dy) || 1;
+    const b = this.add.circle(sx, sy, 8, 0x44bbff).setDepth(3);
     b.vx = BUL_SPD * dx / len; b.vy = BUL_SPD * dy / len; b.dmg = BUL_DMG;
     this.bullets.add(b);
   }
