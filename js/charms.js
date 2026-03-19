@@ -18,16 +18,16 @@ function attrMult(atk, def) {
 
 /* ── Charms ─────────────────────────────────── */
 const CHARM_DEFS = [
-  { id:'water',   name:'水弾符', desc:'最も近い敵に水弾を放つ',           dmg:35, chargeMs:2500, attr:'water' },
-  { id:'pierce',  name:'貫通符', desc:'先頭の敵を狙うビームを放つ',       dmg:60, chargeMs:4000, attr:'wind'  },
-  { id:'scatter', name:'拡散符', desc:'扇状に拡散弾5発を放つ',            dmg:28, chargeMs:2800, attr:'fire'  },
-  { id:'rapid',   name:'連射符', desc:'素早く5連射（威力低め）',          dmg:12, chargeMs:900,  attr:'earth' },
-  { id:'burst',   name:'爆炎符', desc:'近接範囲の全敵を爆炎で焼く',       dmg:45, chargeMs:3500, attr:'fire'  },
-  { id:'burn',    name:'焼燃符', desc:'敵を燃やし継続ダメージを与える',    dmg:15, chargeMs:2000, attr:'fire'  },
-  { id:'rock',    name:'岩砕符', desc:'全敵に岩を落としスタンを与える',    dmg:40, chargeMs:5000, attr:'earth' },
-  { id:'root',    name:'土縛符', desc:'敵を縛り重複するほど威力が増す',    dmg:10, chargeMs:2200, attr:'earth' },
-  { id:'slash',   name:'風斬符', desc:'扇形に風の刃を放つ',               dmg:50, chargeMs:3200, attr:'wind'  },
-  { id:'blow',    name:'突風符', desc:'全敵を大きく押し戻す',              dmg:20, chargeMs:3800, attr:'wind'  },
-  { id:'chain',   name:'連鎖符', desc:'敵から敵へと連鎖する衝撃波',        dmg:30, chargeMs:3000, attr:'wind'  },
-  { id:'mist',    name:'霧域符', desc:'霧のエリアを展開し継続ダメージ',    dmg:25, chargeMs:4500, attr:'water' },
+  { id:'water',   name:'水符・羽弾', desc:'最も近い敵に水弾を放つ',           dmg:35, chargeMs:2500, attr:'water' },
+  { id:'pierce',  name:'水符・凍',   desc:'先頭の敵を狙うビームを放つ',       dmg:60, chargeMs:4000, attr:'wind'  },
+  { id:'scatter', name:'火符・延焼', desc:'扇状に拡散弾5発を放つ',            dmg:28, chargeMs:2800, attr:'fire'  },
+  { id:'rapid',   name:'地符・礫弾', desc:'素早く5連射（威力低め）',          dmg:12, chargeMs:900,  attr:'earth' },
+  { id:'burst',   name:'火符・砲弾', desc:'近接範囲の全敵を爆炎で焼く',       dmg:45, chargeMs:3500, attr:'fire'  },
+  { id:'burn',    name:'火符・傷焰', desc:'敵を燃やし継続ダメージを与える',    dmg:15, chargeMs:2000, attr:'fire'  },
+  { id:'rock',    name:'地符・磐',   desc:'全敵に岩を落としスタンを与える',    dmg:40, chargeMs:5000, attr:'earth' },
+  { id:'root',    name:'地符・根付', desc:'敵を縛り重複するほど威力が増す',    dmg:10, chargeMs:2200, attr:'earth' },
+  { id:'slash',   name:'風符・鎌鼬', desc:'扇形に風の刃を放つ',               dmg:50, chargeMs:3200, attr:'wind'  },
+  { id:'blow',    name:'風符・旋圧', desc:'全敵を大きく押し戻す',              dmg:20, chargeMs:3800, attr:'wind'  },
+  { id:'chain',   name:'風符・迅弾', desc:'敵から敵へと連鎖する衝撃波',        dmg:30, chargeMs:3000, attr:'wind'  },
+  { id:'mist',    name:'水符・銀霧', desc:'霧のエリアを展開し継続ダメージ',    dmg:25, chargeMs:4500, attr:'water' },
 ];
