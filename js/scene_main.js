@@ -380,7 +380,7 @@ class MainScene extends Phaser.Scene {
       if (!this.paused) this._pauseOpen();
       return;
     }
-    if (this.paused) { this._pauseTap(x, y); return; }
+    if (this.paused && y < BATTLE_H) { this._pauseTap(x, y); return; }
     if (this.dialogActive) { this._dlgNext(); return; }
     if (this.dead) { this.scene.start('MainScene', { type:'new' }); return; }
     if (this._rmVis)  { this._rmTap(x, y);  return; }
@@ -397,6 +397,7 @@ class MainScene extends Phaser.Scene {
 
     // slash area
     if (y >= SLASH_Y && y < SLASH_Y + SLASH_H) {
+      if (this.paused) return;
       if (this._bagPickMode >= 0) { this._bagPickMode = -1; this._bagUp(); return; }
       this._doSlash(); return;
     }
@@ -1202,18 +1203,22 @@ class MainScene extends Phaser.Scene {
 
   /* ── Pause ──────────────────────────────── */
   _pauseBuild() {
-    this._pauseOv = this.add.rectangle(W/2, H/2, W, H, 0x000000, 0.7).setDepth(35).setVisible(false);
-    const baseY = H / 2 - 100;
-    const labels = ['再開', 'BGM：ON', 'SE：ON', '呪符付け替え', 'タイトルへ'];
+    // 戦闘エリアのみ暗転
+    this._pauseOv = this.add.rectangle(W/2, BATTLE_H/2, W, BATTLE_H, 0x000000, 0.7).setDepth(35).setVisible(false);
+    // 4項目を戦闘エリア中央に配置（50px間隔、計150px、中心 BATTLE_H/2=165）
+    const baseY = BATTLE_H / 2 - 75;
+    const labels = ['再開', 'BGM：ON', 'SE：ON', 'タイトルへ'];
     this._pauseItems = labels.map((lbl, i) =>
       this.add.text(W/2, baseY + i * 50, lbl, {
         fontSize:'24px', color:'#ffffff', fontFamily:'serif',
         stroke:'#000', strokeThickness:3,
       }).setOrigin(0.5).setDepth(36).setVisible(false)
     );
+    // 確認ダイアログも戦闘エリア内に配置
+    const confBaseY = BATTLE_H / 2 - 50;
     const confLabels = ['セーブして戻る', '戻る', 'キャンセル'];
     this._pauseConfItems = confLabels.map((lbl, i) =>
-      this.add.text(W/2, H/2 - 50 + i * 60, lbl, {
+      this.add.text(W/2, confBaseY + i * 55, lbl, {
         fontSize:'22px', color:'#ffffff', fontFamily:'serif',
         stroke:'#000', strokeThickness:3,
       }).setOrigin(0.5).setDepth(36).setVisible(false)
@@ -1242,12 +1247,18 @@ class MainScene extends Phaser.Scene {
   }
 
   _pauseTap(x, y) {
+    const confBaseY = BATTLE_H / 2 - 50;
     if (this._pauseConfVis) {
       for (let i = 0; i < 3; i++) {
-        if (Math.abs(y - (H/2 - 50 + i * 60)) < 25) {
-          if (i === 0) { this._saveGame(); this.scene.start('TitleScene'); }
-          else if (i === 1) { this.scene.start('TitleScene'); }
-          else {
+        if (Math.abs(y - (confBaseY + i * 55)) < 24) {
+          if (i === 0) {
+            this.scene.physics.pause?.();
+            this._stopBossTimers();
+            this._saveGame();
+            this.scene.start('TitleScene');
+          } else if (i === 1) {
+            this.scene.start('TitleScene');
+          } else {
             this._pauseConfVis = false;
             for (const t of this._pauseConfItems) t.setVisible(false);
             for (const t of this._pauseItems) t.setVisible(true);
@@ -1257,14 +1268,13 @@ class MainScene extends Phaser.Scene {
       }
       return;
     }
-    const baseY = H / 2 - 100;
-    for (let i = 0; i < 5; i++) {
+    const baseY = BATTLE_H / 2 - 75;
+    for (let i = 0; i < 4; i++) {
       if (Math.abs(y - (baseY + i * 50)) < 22) {
         if (i === 0) { this._pauseClose(); }
         else if (i === 1) { this.bgmOn = !this.bgmOn; this._pauseItems[1].setText(`BGM：${this.bgmOn ? 'ON' : 'OFF'}`); }
         else if (i === 2) { this.seOn  = !this.seOn;  this._pauseItems[2].setText(`SE：${this.seOn  ? 'ON' : 'OFF'}`); }
-        else if (i === 3) { this._pauseClose(); }
-        else if (i === 4) {
+        else if (i === 3) {
           this._pauseConfVis = true;
           for (const t of this._pauseItems) t.setVisible(false);
           for (const t of this._pauseConfItems) t.setVisible(true);
