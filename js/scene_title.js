@@ -112,8 +112,8 @@ class TitleScene extends Phaser.Scene {
       fontSize: '42px', color: '#00ff00', fontFamily: 'monospace'
     }).setOrigin(0.5).setDepth(21).setAlpha(0);
     this._termPush = this.add.text(W/2, H - 48, 'PUSH', {
-      fontSize: '18px', color: '#00ff00', fontFamily: 'monospace',
-      shadow: { offsetX: 0, offsetY: 0, color: '#00ff00', blur: 8, fill: true }
+      fontSize: '18px', color: '#ff9900', fontFamily: 'monospace',
+      shadow: { offsetX: 0, offsetY: 0, color: '#ff9900', blur: 8, fill: true }
     }).setOrigin(0.5).setDepth(21).setAlpha(0);
     this._termPushTw = null;
     this._termReady  = false;
@@ -124,105 +124,118 @@ class TitleScene extends Phaser.Scene {
 
   /* ── ターミナル演出 ──────────────────────── */
   _startTerminal() {
-    this._phase      = 'terminal';
-    this._termReady  = false;
+    this._phase     = 'terminal';
+    this._termReady = false;
+    this._termCursorTimer = null;
     [this._termBg, this._termScroll, this._termTypeLine, this._termCredit, this._termPush]
       .forEach(o => o.setVisible(true));
     this._termScroll.setText('').setAlpha(1);
-    this._termTypeLine.setText('').setAlpha(0);
-    this._termCredit.setText('').setAlpha(0);
+    this._termTypeLine.setAlpha(0);
+    this._termCredit.setAlpha(0);
     this._termPush.setAlpha(0);
 
-    const rand = (min = 24, max = 48) => {
-      const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*_+-=|;:.<>?';
-      let s = '';
-      const len = min + Math.floor(Math.random() * (max - min));
-      for (let i = 0; i < len; i++) s += chars[Math.floor(Math.random() * chars.length)];
-      return s;
-    };
-
-    // 固定の意味ある行＋ランダム行を混在
-    const fixedLines = [
-      'USER: MUSHYN_REAGAN',
-      'AUTHENTICATED',
-      'ACCESSING_SYSTEM...',
-      'LOADING_ARCHIVE... OK',
-      'GATE_STATUS: OPEN',
-      'COUNT: UNKNOWN',
-      'WARNING: BOUNDARY_BREACH',
-      'INITIALIZING...',
-      'KAYOU_TEIRIN... CONFIRMED',
-      'MUSHYN_REAGAN... ONLINE',
+    const LINES = [
+      'SYSTEM: UNKNOWN',
+      'USER: UNREGISTERED',
+      'ORIGIN: UNCLASSIFIED',
+      '/'.repeat(19),
+      'LOADING... FAILED',
+      'LOADING... FAILED',
+      'LOADING... OK',
+      '/'.repeat(19),
+      'CLASSIFICATION: NULL',
+      'BELONGING: NULL',
+      'AUTHORIZATION: NONE',
+      '\\'.repeat(19),
+      'WARNING: DOES NOT FIT',
+      'WARNING: DOES NOT FIT',
+      'WARNING: DOES NOT FIT',
+      '/'.repeat(19),
+      'PENALTY_LOG: OVERFLOW',
+      'PARDON_LOG: 0',
+      '\\'.repeat(19),
+      'CORE_FUNCTION: CREATE',
+      'CORE_FUNCTION: CREATE',
+      'CORE_FUNCTION: CREATE',
+      '/'.repeat(19),
+      'CONNECTING TO MUSHYN_REAGAN...',
+      'CONNECTED.',
+      'STATUS: STILL RUNNING',
     ];
 
-    const lines = [];
-    let fixedIdx = 0;
-    for (let i = 0; i < 32; i++) {
-      if (i < 3 || (i % 4 === 0 && fixedIdx < fixedLines.length)) {
-        lines.push(fixedLines[fixedIdx++] || rand());
+    // 全文字数をもとに ms/文字を逆算して3秒以内に収める
+    const totalChars = LINES.reduce((s, l) => s + l.length, 0);
+    const MS = Math.max(1, Math.floor(2700 / totalChars)); // 行間余白分を除いた2700ms
+    const LINE_GAP = Math.max(10, Math.floor(300 / LINES.length));
+
+    const MAX_ROWS = 30;
+    let lineIdx = 0, charIdx = 0;
+    const rows = [];
+
+    const tick = () => {
+      if (lineIdx >= LINES.length) { this._termTypewriter(rows, MAX_ROWS); return; }
+      const line = LINES[lineIdx];
+      charIdx++;
+      this._termScroll.setText([...rows, line.slice(0, charIdx)].slice(-MAX_ROWS).join('\n'));
+      if (charIdx >= line.length) {
+        rows.push(line);
+        lineIdx++;
+        charIdx = 0;
+        this.time.delayedCall(LINE_GAP, tick);
       } else {
-        lines.push(rand());
+        this.time.delayedCall(MS, tick);
       }
-    }
-
-    // 1行ずつ流す
-    let idx = 0;
-    const addLine = () => {
-      if (idx >= lines.length) return;
-      const rows = this._termScroll.text ? this._termScroll.text.split('\n') : [];
-      rows.push(lines[idx++]);
-      if (rows.length > 18) rows.shift();
-      this._termScroll.setText(rows.join('\n'));
     };
-    const scrollTimer = this.time.addEvent({ delay: 50, repeat: lines.length - 1, callback: addLine });
-
-    // 1秒後：スクロール停止→タイプライター開始
-    this.time.delayedCall(1000, () => {
-      scrollTimer.remove(false);
-      this._termTypewriter();
-    });
+    tick();
   }
 
-  _termTypewriter() {
-    const target = 'KAYOUTOUIDOU_';
-    this._termTypeLine.setAlpha(1);
+  _termTypewriter(rows, maxRows) {
+    const base = 'KAYOUTOUIDOU';
     let i = 0;
-    this.time.addEvent({
-      delay: 60, repeat: target.length - 1,
-      callback: () => {
-        i++;
-        this._termTypeLine.setText(target.slice(0, i));
+    this._termScroll.setText([...rows, '_'].slice(-maxRows).join('\n'));
+
+    const tick = () => {
+      i++;
+      this._termScroll.setText([...rows, base.slice(0, i) + '_'].slice(-maxRows).join('\n'));
+      if (i >= base.length) {
+        // カーソル点滅してから変換へ
+        let vis = true, cnt = 0;
+        this._termCursorTimer = this.time.addEvent({
+          delay: 200, repeat: 5,
+          callback: () => {
+            vis = !vis; cnt++;
+            this._termScroll.setText([...rows, vis ? base + '_' : base].slice(-maxRows).join('\n'));
+            if (cnt >= 5) { this._termCursorTimer = null; this._termConvert(rows, maxRows); }
+          }
+        });
+      } else {
+        this.time.delayedCall(150, tick);
       }
-    });
-    // タイプ完了後0.2秒で変換エフェクト
-    this.time.delayedCall(60 * target.length + 200, () => this._termConvert());
+    };
+    this.time.delayedCall(150, tick);
   }
 
-  _termConvert() {
-    // 点滅3回で "制作：華耀東夷堂" に切り替わる演出
-    const finalText = '制作：華耀東夷堂';
-    let count = 0;
-    this.time.addEvent({
-      delay: 80, repeat: 3,
-      callback: () => {
-        count++;
-        if (count % 2 === 0) {
-          this._termTypeLine.setText('KAYOUTOUIDOU_');
-        } else {
-          this._termTypeLine.setText('##########');
-        }
-        if (count >= 3) {
-          this._termTypeLine.setAlpha(0);
-          this._termCredit.setText(finalText).setAlpha(1);
-          this.time.delayedCall(300, () => this._termShowPush());
-        }
+  _termConvert(rows, maxRows) {
+    const stages = [
+      'PRODUCER: KAYOUTOUIDOU',
+      'PRODUCER: かようとういどう',
+      'PRODUCER: 華耀東夷堂',
+    ];
+    let idx = 0;
+    const show = () => {
+      this._termScroll.setText([...rows, stages[idx]].slice(-maxRows).join('\n'));
+      idx++;
+      if (idx < stages.length) {
+        this.time.delayedCall(500, show);
+      } else {
+        this.time.delayedCall(500, () => this._termShowPush());
       }
-    });
+    };
+    show();
   }
 
   _termShowPush() {
     this._termReady = true;
-    // time.addEventでalpha切り替え（tweenのonUpdateより確実）
     let vis = true;
     this._termPush.setAlpha(1);
     this._termPushTw = this.time.addEvent({
@@ -233,6 +246,7 @@ class TitleScene extends Phaser.Scene {
 
   _terminalHide() {
     if (this._termPushTw) { this._termPushTw.destroy(); this._termPushTw = null; }
+    if (this._termCursorTimer) { this._termCursorTimer.remove(false); this._termCursorTimer = null; }
     [this._termBg, this._termScroll, this._termTypeLine, this._termCredit, this._termPush]
       .forEach(o => o.setAlpha(0).setVisible(false));
   }
