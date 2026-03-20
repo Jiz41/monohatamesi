@@ -61,6 +61,9 @@ class MainScene extends Phaser.Scene {
     this.charmSelected = false;
     this._lpTimer  = null;
     this._lpActive = false;
+    this.paused    = false;
+    this.bgmOn     = true;
+    this.seOn      = true;
 
     this._bg();    this._kb();    this._hdr();
     this._grid();  this._slash(); this._bagBuild();
@@ -69,6 +72,7 @@ class MainScene extends Phaser.Scene {
     this._cpBuild();  this._upgBuild();
     this._dlgBuild(); this._rmBuild();
     this._tooltipBuild();
+    this._pauseBuild();
 
     this.onis    = this.add.group();
     this.bullets = this.add.group();
@@ -88,6 +92,7 @@ class MainScene extends Phaser.Scene {
   update(_t, dt) {
     if (this.dead || this.waveDone) return;
     if (this.dialogActive) return;
+    if (this.paused) return;
 
     // combo decay
     if (this.combo > 1.0) {
@@ -189,6 +194,11 @@ class MainScene extends Phaser.Scene {
     this.add.rectangle(20, BATTLE_H/2, 40, BATTLE_H, 0x6e4e12).setDepth(1);
     this.add.rectangle(20, BATTLE_H/2, 40, BATTLE_H).setStrokeStyle(2, 0xb89a30).setDepth(2);
     this.add.text(20, 20, '門', { fontSize:'12px', color:'#ccaa44', fontFamily:'serif' }).setOrigin(0.5).setDepth(3);
+    // PAUSEボタン（戦闘エリア右上）
+    const pBtnBg = this.add.graphics().setDepth(20);
+    pBtnBg.fillStyle(0x000000, 0.6);
+    pBtnBg.fillRoundedRect(355, 0, 30, 30, 4);
+    this.add.text(370, 15, '≡', { fontSize:'18px', color:'#ffffff', fontFamily:'serif' }).setOrigin(0.5).setDepth(20);
   }
 
   /* ── Kibitsu ────────────────────────────── */
@@ -364,7 +374,13 @@ class MainScene extends Phaser.Scene {
   /* ── Input ──────────────────────────────── */
   _tap(ptr) {
     const { x, y } = ptr;
-    if (this._lpActive) return; // ツールチップ表示中は pointerup で処理
+    if (this._lpActive) return;
+    // PAUSEボタン（戦闘エリア右上 355-385, 0-30）
+    if (x >= 355 && x <= 385 && y >= 0 && y <= 30) {
+      if (!this.paused) this._pauseOpen();
+      return;
+    }
+    if (this.paused) { this._pauseTap(x, y); return; }
     if (this.dialogActive) { this._dlgNext(); return; }
     if (this.dead) { this.scene.start('MainScene', { type:'new' }); return; }
     if (this._rmVis)  { this._rmTap(x, y);  return; }
@@ -1181,6 +1197,80 @@ class MainScene extends Phaser.Scene {
       const cb = this._dlgOnComplete;
       this._dlgOnComplete = null;
       cb();
+    }
+  }
+
+  /* ── Pause ──────────────────────────────── */
+  _pauseBuild() {
+    this._pauseOv = this.add.rectangle(W/2, H/2, W, H, 0x000000, 0.7).setDepth(35).setVisible(false);
+    const baseY = H / 2 - 100;
+    const labels = ['再開', 'BGM：ON', 'SE：ON', '呪符付け替え', 'タイトルへ'];
+    this._pauseItems = labels.map((lbl, i) =>
+      this.add.text(W/2, baseY + i * 50, lbl, {
+        fontSize:'24px', color:'#ffffff', fontFamily:'serif',
+        stroke:'#000', strokeThickness:3,
+      }).setOrigin(0.5).setDepth(36).setVisible(false)
+    );
+    const confLabels = ['セーブして戻る', '戻る', 'キャンセル'];
+    this._pauseConfItems = confLabels.map((lbl, i) =>
+      this.add.text(W/2, H/2 - 50 + i * 60, lbl, {
+        fontSize:'22px', color:'#ffffff', fontFamily:'serif',
+        stroke:'#000', strokeThickness:3,
+      }).setOrigin(0.5).setDepth(36).setVisible(false)
+    );
+    this._pauseConfVis = false;
+  }
+
+  _pauseOpen() {
+    this.paused = true;
+    this.tweens.pauseAll();
+    this._pauseOv.setVisible(true);
+    this._pauseItems[1].setText(`BGM：${this.bgmOn ? 'ON' : 'OFF'}`);
+    this._pauseItems[2].setText(`SE：${this.seOn ? 'ON' : 'OFF'}`);
+    for (const t of this._pauseItems) t.setVisible(true);
+    this._pauseConfVis = false;
+    for (const t of this._pauseConfItems) t.setVisible(false);
+  }
+
+  _pauseClose() {
+    this.paused = false;
+    this.tweens.resumeAll();
+    this._pauseOv.setVisible(false);
+    for (const t of this._pauseItems) t.setVisible(false);
+    for (const t of this._pauseConfItems) t.setVisible(false);
+    this._pauseConfVis = false;
+  }
+
+  _pauseTap(x, y) {
+    if (this._pauseConfVis) {
+      for (let i = 0; i < 3; i++) {
+        if (Math.abs(y - (H/2 - 50 + i * 60)) < 25) {
+          if (i === 0) { this._saveGame(); this.scene.start('TitleScene'); }
+          else if (i === 1) { this.scene.start('TitleScene'); }
+          else {
+            this._pauseConfVis = false;
+            for (const t of this._pauseConfItems) t.setVisible(false);
+            for (const t of this._pauseItems) t.setVisible(true);
+          }
+          return;
+        }
+      }
+      return;
+    }
+    const baseY = H / 2 - 100;
+    for (let i = 0; i < 5; i++) {
+      if (Math.abs(y - (baseY + i * 50)) < 22) {
+        if (i === 0) { this._pauseClose(); }
+        else if (i === 1) { this.bgmOn = !this.bgmOn; this._pauseItems[1].setText(`BGM：${this.bgmOn ? 'ON' : 'OFF'}`); }
+        else if (i === 2) { this.seOn  = !this.seOn;  this._pauseItems[2].setText(`SE：${this.seOn  ? 'ON' : 'OFF'}`); }
+        else if (i === 3) { this._pauseClose(); }
+        else if (i === 4) {
+          this._pauseConfVis = true;
+          for (const t of this._pauseItems) t.setVisible(false);
+          for (const t of this._pauseConfItems) t.setVisible(true);
+        }
+        return;
+      }
     }
   }
 
