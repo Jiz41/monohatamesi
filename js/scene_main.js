@@ -177,8 +177,8 @@ class MainScene extends Phaser.Scene {
       }
     }
 
-    // wave clear
-    if (this.spawned >= ONI_WAVE && this.bossSpawned && this.onis.countActive(true) === 0)
+    // wave clear（bossDeathSequenceによる二重発火防止）
+    if (!this.waveDone && this.spawned >= ONI_WAVE && this.bossSpawned && this.onis.countActive(true) === 0)
       this._waveClear();
 
     this._hdrUp();
@@ -920,6 +920,127 @@ class MainScene extends Phaser.Scene {
 
   _oniRm(oni) { oni.lbl?.destroy(); oni.hpBg?.destroy(); oni.hpFill?.destroy(); oni.attrLbl?.destroy(); oni.destroy(); }
 
+  // UI要素のみ即時除去（ボディはアニメ後に破棄）
+  _oniRmUI(oni) {
+    oni.lbl?.destroy();     oni.lbl     = null;
+    oni.hpBg?.destroy();    oni.hpBg    = null;
+    oni.hpFill?.destroy();  oni.hpFill  = null;
+    oni.attrLbl?.destroy(); oni.attrLbl = null;
+    if (oni._burnEvent)   { oni._burnEvent.remove(false);     oni._burnEvent   = null; }
+    if (oni._statusTimer) { clearTimeout(oni._statusTimer);   oni._statusTimer = null; }
+  }
+
+  /* ── Death FX: 小鬼・中鬼・大鬼 ──────────── */
+  _deathFxSmall(oni, onComplete) {
+    this._oniRmUI(oni);
+    oni.setActive(false);
+    this.tweens.add({
+      targets: oni, x: oni.x + 100, alpha: 0, duration: 300, ease: 'Power2',
+      onComplete: () => {
+        const px = oni.x, py = oni.y;
+        oni.destroy();
+        const count = Phaser.Math.Between(12, 15);
+        for (let i = 0; i < count; i++) {
+          // 上方向＋右方向（-PI〜0 の上半円、右寄り）
+          const angle = Phaser.Math.FloatBetween(-Math.PI * 0.85, 0.05);
+          const spd   = Phaser.Math.Between(30, 80);
+          const sz    = Phaser.Math.Between(2, 4);
+          const g = this.add.graphics().setDepth(9);
+          g.fillStyle(0xCCBB99, 1);
+          g.fillRect(-sz / 2, -sz / 2, sz, sz);
+          g.x = px + Phaser.Math.Between(-15, 15);
+          g.y = py + Phaser.Math.Between(-10, 10);
+          this.tweens.add({
+            targets: g,
+            x: g.x + Math.cos(angle) * spd,
+            y: g.y + Math.sin(angle) * spd,
+            alpha: 0, duration: 800, onComplete: () => g.destroy(),
+          });
+        }
+        if (onComplete) onComplete();
+      },
+    });
+  }
+
+  /* ── Death FX: ネームドボス ─────────────── */
+  _deathFxBoss(oni, onComplete) {
+    this._oniRmUI(oni);
+    oni.setActive(false);
+    const origX = oni.x;
+    let shakes = 0;
+    const shake = () => {
+      if (shakes >= 6) { this._bossSandify(oni, onComplete); return; }
+      this.tweens.add({
+        targets: oni, x: origX + (shakes % 2 === 0 ? 3 : -3), duration: 80,
+        onComplete: () => { shakes++; shake(); },
+      });
+    };
+    shake();
+  }
+
+  _bossSandify(oni, onComplete) {
+    const texW = oni.width, texH = oni.height;
+    const sprTop = oni.y - oni.hSz / 2;
+    const count  = Phaser.Math.Between(40, 50);
+    // ③ 砂パーティクル：上から順に放出、下方向へ拡散
+    for (let i = 0; i < count; i++) {
+      const delay = (i / count) * 1200;
+      this.time.delayedCall(delay, () => {
+        if (!oni.scene) return;
+        const px    = oni.x + Phaser.Math.Between(-Math.floor(oni.displayWidth / 2), Math.floor(oni.displayWidth / 2));
+        const py    = sprTop + (i / count) * oni.hSz;
+        const angle = Phaser.Math.FloatBetween(Math.PI * 0.25, Math.PI * 0.75);
+        const spd   = Phaser.Math.Between(40, 100);
+        const sz    = Phaser.Math.Between(2, 5);
+        const g = this.add.graphics().setDepth(9);
+        g.fillStyle(0xCCBB99, 1);
+        g.fillRect(-sz / 2, -sz / 2, sz, sz);
+        g.x = px; g.y = py;
+        this.tweens.add({
+          targets: g,
+          x: g.x + Math.cos(angle) * spd, y: g.y + Math.sin(angle) * spd,
+          alpha: 0, duration: 800, onComplete: () => g.destroy(),
+        });
+      });
+    }
+    // ② setCrop で頭から砂化（1200ms）
+    const tw = { t: 0 };
+    this.tweens.add({
+      targets: tw, t: 1, duration: 1200,
+      onUpdate: () => {
+        if (!oni.scene) return;
+        oni.setCrop(0, Math.floor(tw.t * texH), texW, Math.ceil((1 - tw.t) * texH));
+      },
+      onComplete: () => {
+        oni.destroy();
+        if (onComplete) onComplete();
+      },
+    });
+  }
+
+  /* ── Boss death → ザコ一掃 → シナリオフロー */
+  _bossDeathSequence(boss) {
+    this._stopBossTimers();
+    this.waveDone = true;
+    this._deathFxBoss(boss, () => {
+      const survivors = this.onis.getChildren().filter(o => o.active);
+      const onAllDone = () => {
+        this._healOnWaveClear();
+        this._saveGame();
+        this._ov('WAVE CLEAR!', '#ffff44', `WAVE ${this.wave} 撃退成功！`);
+        this.time.delayedCall(1800, () => { this._ovHide(); this._bossScenarioFlow(); });
+      };
+      if (survivors.length === 0) { onAllDone(); return; }
+      let pending = survivors.length;
+      survivors.forEach((sv, i) => {
+        this.time.delayedCall(i * 50, () => {
+          this.defeated++; this.totalExp += sv.exp;
+          this._deathFxSmall(sv, () => { if (--pending === 0) onAllDone(); });
+        });
+      });
+    });
+  }
+
   _oniDmg(oni, rawDmg, atkAttr = 'none', dot = false) {
     if (!oni.active) return;
     const mult = attrMult(atkAttr, oni.attr || 'none');
@@ -934,15 +1055,11 @@ class MainScene extends Phaser.Scene {
     if (oni.setTint) { oni.setTint(0xff4444); this.time.delayedCall(100, () => { if (oni?.active) oni.clearTint?.(); }); }
     if (oni.hp <= 0) {
       this.defeated++; this.totalExp += oni.exp;
-      const wasBoss = oni.isBoss;
-      const wasOgre = oni.isOgre;
-      this._oniRm(oni);
-      // 大鬼撃破：スポーンタイマー停止のみ。残小鬼も全滅したらupdateループでWAVEクリア
-      if (wasOgre) this._stopBossTimers();
-      // ネームドボス撃破：WAVEクリアフロー発火
-      if (wasBoss) {
-        this._stopBossTimers();
-        if (!this.waveDone) this._waveClearBoss();
+      if (oni.isBoss) {
+        if (!this.waveDone) this._bossDeathSequence(oni);
+      } else {
+        if (oni.isOgre) this._stopBossTimers();
+        this._deathFxSmall(oni, null);
       }
     }
   }
