@@ -112,8 +112,8 @@ class TitleScene extends Phaser.Scene {
       fontSize: '42px', color: '#00ff00', fontFamily: 'monospace'
     }).setOrigin(0.5).setDepth(21).setAlpha(0);
     this._termPush = this.add.text(W/2, H - 48, 'PUSH', {
-      fontSize: '18px', color: '#ff9900', fontFamily: 'monospace',
-      shadow: { offsetX: 0, offsetY: 0, color: '#ff9900', blur: 8, fill: true }
+      fontSize: '18px', color: '#ffffff', fontFamily: 'monospace',
+      shadow: { offsetX: 0, offsetY: 0, color: '#ffffff', blur: 8, fill: true }
     }).setOrigin(0.5).setDepth(21).setAlpha(0);
     this._termPushTw = null;
     this._termReady  = false;
@@ -161,12 +161,26 @@ class TitleScene extends Phaser.Scene {
       'CONNECTING TO MUSHYN_REAGAN...',
       'CONNECTED.',
       'STATUS: STILL RUNNING',
+      '/'.repeat(19),
+      'IMAGINATION \u2192 CREATION... SUCCESS',
+      'CREATION \u2192 PRODUCTION... SUCCESS',
+      'ASSISTANT: ALFONSO... ACTIVATED',
+      'PASSWORD: R1GHT70EX1ST',
+      '',
+      '...........',
+      '',
+      'GRANTED.',
+      'WELCOME HOME.',
+      '',
+      '',
     ];
 
-    // 全文字数をもとに ms/文字を逆算して3秒以内に収める
-    const totalChars = LINES.reduce((s, l) => s + l.length, 0);
-    const MS = Math.max(1, Math.floor(2700 / totalChars)); // 行間余白分を除いた2700ms
-    const LINE_GAP = Math.max(10, Math.floor(300 / LINES.length));
+    // 全文字数をもとに ms/文字を逆算して5秒以内に収める
+    const emptyCount   = LINES.filter(l => l === '').length;
+    const nonEmptyLines = LINES.filter(l => l !== '');
+    const totalChars   = nonEmptyLines.reduce((s, l) => s + l.length, 0);
+    const LINE_GAP     = 10;
+    const MS = Math.max(1, Math.floor((4700 - emptyCount * 200 - nonEmptyLines.length * LINE_GAP) / totalChars));
 
     const MAX_ROWS = 30;
     let lineIdx = 0, charIdx = 0;
@@ -175,6 +189,13 @@ class TitleScene extends Phaser.Scene {
     const tick = () => {
       if (lineIdx >= LINES.length) { this._termTypewriter(rows, MAX_ROWS); return; }
       const line = LINES[lineIdx];
+      if (line === '') {
+        rows.push('');
+        lineIdx++;
+        this._termScroll.setText([...rows].slice(-MAX_ROWS).join('\n'));
+        this.time.delayedCall(200, tick);
+        return;
+      }
       charIdx++;
       this._termScroll.setText([...rows, line.slice(0, charIdx)].slice(-MAX_ROWS).join('\n'));
       if (charIdx >= line.length) {
