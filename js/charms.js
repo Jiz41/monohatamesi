@@ -199,6 +199,13 @@ function _hitEffect(tx, ty, charm, scene) {
 function applyStatus(enemy, type, duration, scene) {
   if (!enemy?.active) return;
 
+  // 耐性チェック
+  if (enemy.isBoss && enemy.isNamed) {
+    if (type === 'stun' || type === 'root' || type === 'freeze' || type === 'knockback') return;
+    // slow は半減（処理を続けるが duration と倍率を上書き）
+  }
+  if (enemy.isOgre && type === 'knockback') return;
+
   // 元のspeedを初回のみ保持
   if (enemy._origSpd == null) enemy._origSpd = enemy.spd;
   const origSpd = enemy._origSpd;
@@ -219,7 +226,7 @@ function applyStatus(enemy, type, duration, scene) {
         callback: () => {
           fired++;
           if (!enemy.active) { if (enemy._burnEvent) { enemy._burnEvent.remove(false); enemy._burnEvent = null; } return; }
-          scene._oniDmg(enemy, 15, 'fire');
+          scene._oniDmg(enemy, 15, 'fire', true);
           if (fired >= ticks) enemy._burnEvent = null;
         },
       });
@@ -237,10 +244,12 @@ function applyStatus(enemy, type, duration, scene) {
       enemy._statusTimer = setTimeout(() => { if (enemy.active) enemy.spd = origSpd; }, duration);
       break;
 
-    case 'slow':
-      enemy.spd = origSpd * 0.4;
+    case 'slow': {
+      const slowMult = (enemy.isBoss && enemy.isNamed) ? 0.7 : 0.4;
+      enemy.spd = origSpd * slowMult;
       enemy._statusTimer = setTimeout(() => { if (enemy.active) enemy.spd = origSpd; }, duration);
       break;
+    }
   }
 }
 

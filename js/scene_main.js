@@ -137,12 +137,12 @@ class MainScene extends Phaser.Scene {
       if (oni.burnTimer > 0) {
         oni.burnTimer = Math.max(0, oni.burnTimer - dt);
         oni.burnTick += dt;
-        if (oni.burnTick >= 500) { oni.burnTick -= 500; this._oniDmg(oni, 8, 'fire'); }
+        if (oni.burnTick >= 500) { oni.burnTick -= 500; this._oniDmg(oni, 8, 'fire', true); }
       }
       // root DoT
       if (oni.rootStacks > 0) {
         oni.rootTick += dt;
-        if (oni.rootTick >= 500) { oni.rootTick -= 500; this._oniDmg(oni, oni.rootStacks * 5, 'earth'); }
+        if (oni.rootTick >= 500) { oni.rootTick -= 500; this._oniDmg(oni, oni.rootStacks * 5, 'earth', true); }
       }
       // movement & attack (skip while stunned or knocked back)
       if (oni.stunTimer <= 0 && oni.knockTimer <= 0) {
@@ -320,13 +320,16 @@ class MainScene extends Phaser.Scene {
     this.resExp    = this.add.text(W/2, b + 50, '', { fontSize:'13px', color:'#aaeebb', fontFamily:'Arial' }).setOrigin(0.5).setAlpha(0).setDepth(15);
     this.resBagTxt = this.add.text(W/2, b + 72, '', { fontSize:'11px', color:'#aa5533', fontFamily:'Arial' }).setOrigin(0.5).setAlpha(0).setDepth(15);
     this.resBtns = ['呪符を選ぶ', 'キビツを強化する', '次のWAVEへ'].map((lbl, i) => {
-      const by = b + 100 + i * 80;
+      const by = b + 96 + i * 76;
       return {
-        bg:  this.add.rectangle(W/2, by, W - 40, 64, 0x0f1f0f).setStrokeStyle(2, 0x44aa44).setAlpha(0).setDepth(15),
+        bg:  this.add.rectangle(W/2, by, W - 40, 60, 0x0f1f0f).setStrokeStyle(2, 0x44aa44).setAlpha(0).setDepth(15),
         txt: this.add.text(W/2, by, lbl, { fontSize:'18px', color:'#cceecc', fontFamily:'serif' }).setOrigin(0.5).setAlpha(0).setDepth(16),
         i
       };
     });
+    const healY = b + 96 + 3 * 76;
+    this.resHealBg  = this.add.rectangle(W/2, healY, W - 40, 60, 0x0a1a2a).setStrokeStyle(2, 0x4488aa).setAlpha(0).setDepth(15);
+    this.resHealTxt = this.add.text(W/2, healY, 'EXPで回復', { fontSize:'18px', color:'#88ddff', fontFamily:'serif' }).setOrigin(0.5).setAlpha(0).setDepth(16);
   }
 
   /* ── Charm pick screen ──────────────────── */
@@ -377,10 +380,13 @@ class MainScene extends Phaser.Scene {
     if (this._lpActive) return;
     // PAUSEボタン（戦闘エリア右上 355-385, 0-30）
     if (x >= 355 && x <= 385 && y >= 0 && y <= 30) {
-      if (!this.paused) this._pauseOpen();
+      if (!this.paused && !this.dialogActive) this._pauseOpen();
       return;
     }
-    if (this.paused && y < BATTLE_H) { this._pauseTap(x, y); return; }
+    if (this.paused && y < BATTLE_H) {
+      if (this.dialogActive) return; // メッセージ中はPAUSEメニュー操作も無効
+      this._pauseTap(x, y); return;
+    }
     if (this.dialogActive) { this._dlgNext(); return; }
     if (this.dead) { this.scene.start('MainScene', { type:'new' }); return; }
     if (this._rmVis)  { this._rmTap(x, y);  return; }
@@ -520,9 +526,23 @@ class MainScene extends Phaser.Scene {
 
   /* ── Result ─────────────────────────────── */
   _resTap(x, y) {
+    // EXPで回復ボタン
+    const healY = UI_Y0 + 96 + 3 * 76;
+    if (Math.abs(y - healY) < 32) {
+      const cost = this.kbHPMax;
+      if (this.totalExp >= cost) {
+        this.totalExp -= cost;
+        this.kbHP = this.kbHPMax;
+        const r = 1;
+        this.kbHpBar.setDisplaySize(54 * r, 9).setFillStyle(0x22dd55);
+        this.resExp.setText(`EXP: ${this.totalExp}  /  持ち物袋: ${this.bagCharms.length}/3`);
+        this._resHealRefresh();
+      }
+      return;
+    }
     for (const btn of this.resBtns) {
-      const by = UI_Y0 + 100 + btn.i * 80;
-      if (Math.abs(y - by) < 36) {
+      const by = UI_Y0 + 96 + btn.i * 76;
+      if (Math.abs(y - by) < 32) {
         if (btn.i === 0) {
           if (this.bagCharms.length < 3) this._cpOpen('result', -1);
         } else if (btn.i === 1) {
@@ -554,6 +574,17 @@ class MainScene extends Phaser.Scene {
         b.bg.setStrokeStyle(2, 0x44aa44);
       }
     }
+    this._resHealRefresh();
+  }
+
+  _resHealRefresh() {
+    const cost = this.kbHPMax;
+    const canHeal = this.totalExp >= cost;
+    this.resHealBg.setAlpha(1).setStrokeStyle(2, canHeal ? 0x4488aa : 0x334444);
+    this.resHealTxt
+      .setText(`EXPで回復  [${cost} EXP]`)
+      .setStyle({ color: canHeal ? '#88ddff' : '#446655', fontSize:'18px', fontFamily:'serif' })
+      .setAlpha(canHeal ? 1 : 0.5);
   }
 
   _resClose() {
@@ -561,6 +592,7 @@ class MainScene extends Phaser.Scene {
     this.resBg.setAlpha(0); this.resTtl.setAlpha(0); this.resExp.setAlpha(0);
     this.resBagTxt.setAlpha(0);
     for (const b of this.resBtns) { b.bg.setAlpha(0); b.txt.setAlpha(0); }
+    this.resHealBg.setAlpha(0); this.resHealTxt.setAlpha(0);
   }
 
   /* ── Upgrade ────────────────────────────── */
@@ -808,6 +840,7 @@ class MainScene extends Phaser.Scene {
     const bossRatio = chapIdx === 4 ? 0.85 : 0.75;
     const sy = BATTLE_H - (BATTLE_H * bossRatio) / 2;
     this._makeOni(W, sy, 56, 84, 0x220044, 0xff33ff, `【${name}】`, '13px', '#ff88ff', BOSS_HP, BOSS_SPD, BOSS_DMG, 72, EXP_B, true, bossImg, attr);
+    this.onis.getLast(true).isNamed = true;
 
     // ボス出現と同時に無限湧き：小鬼1500ms・中鬼4000ms、同時上限8体
     this._bossSpawnTimerKobuki = this.time.addEvent({
@@ -887,14 +920,16 @@ class MainScene extends Phaser.Scene {
 
   _oniRm(oni) { oni.lbl?.destroy(); oni.hpBg?.destroy(); oni.hpFill?.destroy(); oni.attrLbl?.destroy(); oni.destroy(); }
 
-  _oniDmg(oni, rawDmg, atkAttr = 'none') {
+  _oniDmg(oni, rawDmg, atkAttr = 'none', dot = false) {
     if (!oni.active) return;
     const mult = attrMult(atkAttr, oni.attr || 'none');
     const dmg = Math.max(1, Math.round(rawDmg * mult));
     oni.hp -= dmg;
     const r = Phaser.Math.Clamp(oni.hp / oni.maxHp, 0, 1);
     oni.hpFill.setDisplaySize(oni.bw * r, oni.barH);
-    const col = mult >= 1.0 ? '#ffff44' : mult >= 0.75 ? '#ffffff' : '#888888';
+    // 色：DoT→黄 / 属性クリティカル（有利属性）→赤 / 通常→白
+    const isCrit = !dot && mult >= 1.0 && atkAttr !== 'none' && (oni.attr || 'none') !== 'none';
+    const col = dot ? '#ffff00' : isCrit ? '#ff3300' : '#ffffff';
     this._dmgNum(oni.x, oni.y - oni.hSz/2, dmg, col);
     if (oni.setTint) { oni.setTint(0xff4444); this.time.delayedCall(100, () => { if (oni?.active) oni.clearTint?.(); }); }
     if (oni.hp <= 0) {
@@ -913,8 +948,8 @@ class MainScene extends Phaser.Scene {
   }
 
   _dmgNum(x, y, dmg, col) {
-    const t = this.add.text(x, y - 10, String(dmg), { fontSize:'17px', color: col || '#fff', stroke:'#000', strokeThickness:3, fontFamily:'Arial', fontStyle:'bold' }).setOrigin(0.5).setDepth(11);
-    this.tweens.add({ targets: t, y: y - 52, alpha: 0, duration: 580, ease:'Power1', onComplete: () => t.destroy() });
+    const t = this.add.text(x, y - 10, String(dmg), { fontSize:'18px', color: col || '#ffffff', stroke:'#000', strokeThickness:3, fontFamily:'Arial', fontStyle:'bold' }).setOrigin(0.5).setDepth(11);
+    this.tweens.add({ targets: t, y: y - 60, alpha: 0, duration: 800, ease:'Power1', onComplete: () => t.destroy() });
   }
 
   _kbDmg(dmg) {
@@ -939,9 +974,17 @@ class MainScene extends Phaser.Scene {
     this.bullets.add(b);
   }
 
+  _healOnWaveClear() {
+    const heal = Math.floor(this.kbHPMax * 0.1);
+    this.kbHP = Math.min(this.kbHPMax, this.kbHP + heal);
+    const r = this.kbHP / this.kbHPMax;
+    this.kbHpBar.setDisplaySize(54 * r, 9).setFillStyle(r > 0.5 ? 0x22dd55 : r > 0.25 ? 0xddcc22 : 0xdd2222);
+  }
+
   /* ── Wave ───────────────────────────────── */
   _waveClear() {
     this.waveDone = true;
+    this._healOnWaveClear();
     this._saveGame();
     this._ov('WAVE CLEAR!', '#ffff44', `WAVE ${this.wave} 撃退成功！`);
     this.time.delayedCall(1800, () => { this._ovHide(); this._resOpen(); });
@@ -949,6 +992,7 @@ class MainScene extends Phaser.Scene {
 
   _waveClearBoss() {
     this.waveDone = true;
+    this._healOnWaveClear();
     this._saveGame();
     this._ov('WAVE CLEAR!', '#ffff44', `WAVE ${this.wave} 撃退成功！`);
     this.time.delayedCall(1800, () => { this._ovHide(); this._bossScenarioFlow(); });
