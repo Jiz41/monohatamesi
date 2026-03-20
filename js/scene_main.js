@@ -364,6 +364,7 @@ class MainScene extends Phaser.Scene {
   /* ── Input ──────────────────────────────── */
   _tap(ptr) {
     const { x, y } = ptr;
+    if (this._lpActive) return; // ツールチップ表示中は pointerup で処理
     if (this.dialogActive) { this._dlgNext(); return; }
     if (this.dead) { this.scene.start('MainScene', { type:'new' }); return; }
     if (this._rmVis)  { this._rmTap(x, y);  return; }
@@ -415,7 +416,7 @@ class MainScene extends Phaser.Scene {
             this._bagUp(); this._gridUp();
           }
         } else if (this.slotCharms[idx]) {
-          this._rmOpen(idx); // filled → confirm remove
+          // 外す操作は長押しツールチップ経由のみ
         } else if (this.bagCharms.length > 0) {
           this._cpOpen('place', idx); // empty → pick from bag modal
         }
@@ -1185,8 +1186,8 @@ class MainScene extends Phaser.Scene {
 
   /* ── Long press / Tooltip ───────────────── */
   _lpStart(p) {
+    if (this._lpActive) return; // ツールチップ表示中はタイマーをリセットしない
     if (this._lpTimer) { this._lpTimer.remove(false); this._lpTimer = null; }
-    this._lpActive = false;
     const { x, y } = p;
     if (y < GRID_TOP || y >= GRID_BOT) return;
     const col = Math.floor((x - GRID_X0) / CELL_W);
@@ -1200,9 +1201,25 @@ class MainScene extends Phaser.Scene {
     });
   }
 
-  _lpEnd() {
+  _lpEnd(p) {
     if (this._lpTimer) { this._lpTimer.remove(false); this._lpTimer = null; }
-    if (this._lpActive) { this._tooltipHide(); this._lpActive = false; }
+    if (!this._lpActive) return;
+    const b = this._tipRemoveBounds;
+    if (b && p.x >= b.x && p.x <= b.x + b.w && p.y >= b.y && p.y <= b.y + b.h) {
+      this._removeCharmViaTooltip();
+    } else {
+      this._tooltipHide();
+      this._lpActive = false;
+    }
+  }
+
+  _removeCharmViaTooltip() {
+    if (this._lpIdx < 0) return;
+    this.slotCharms[this._lpIdx] = null;
+    this.charmTimers[this._lpIdx] = 0;
+    this._gridUp();
+    this._tooltipHide();
+    this._lpActive = false;
   }
 
   _tooltipBuild() {
@@ -1211,6 +1228,13 @@ class MainScene extends Phaser.Scene {
       fontSize:'12px', color:'#ffffff', fontFamily:'serif',
       lineSpacing:4, stroke:'#000', strokeThickness:2,
     }).setDepth(26).setAlpha(0);
+    this._tipRemoveBg  = this.add.graphics().setDepth(26).setAlpha(0);
+    this._tipRemoveTxt = this.add.text(0, 0, '外す', {
+      fontSize:'13px', color:'#ffffff', fontFamily:'serif', fontStyle:'bold',
+      stroke:'#000', strokeThickness:2,
+    }).setOrigin(0.5).setDepth(27).setAlpha(0);
+    this._tipRemoveBounds = null;
+    this._lpIdx = -1;
   }
 
   _tooltipShow(idx) {
@@ -1240,11 +1264,27 @@ class MainScene extends Phaser.Scene {
     this._tipBg.fillStyle(0x000000, 0.85);
     this._tipBg.fillRoundedRect(tipCX - tw / 2, tipCY - th / 2, tw, th, 8);
     this._tipBg.setAlpha(1);
-    this._tipTxt.setPosition(tipCX - tw / 2 + pad, tipCY - th / 2 + pad);
+    this._tipTxt.setPosition(tipCX - tw / 2 + pad, tipCY - th / 2 + pad).setAlpha(1);
+
+    // 外すボタン（ツールチップ下部）
+    const btnW = 70, btnH = 28;
+    const btnX = tipCX;
+    const btnY = tipCY + th / 2 + 8 + btnH / 2;
+    this._tipRemoveBg.clear();
+    this._tipRemoveBg.fillStyle(0xAA0000, 1);
+    this._tipRemoveBg.fillRoundedRect(btnX - btnW / 2, btnY - btnH / 2, btnW, btnH, 6);
+    this._tipRemoveBg.setAlpha(1);
+    this._tipRemoveTxt.setPosition(btnX, btnY).setAlpha(1);
+    this._tipRemoveBounds = { x: btnX - btnW / 2, y: btnY - btnH / 2, w: btnW, h: btnH };
+    this._lpIdx = idx;
   }
 
   _tooltipHide() {
     this._tipBg.setAlpha(0);
     this._tipTxt.setAlpha(0);
+    this._tipRemoveBg.setAlpha(0);
+    this._tipRemoveTxt.setAlpha(0);
+    this._tipRemoveBounds = null;
+    this._lpIdx = -1;
   }
 }

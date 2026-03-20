@@ -17,17 +17,17 @@ function attrMult(atk, def) {
 /* ── Charm Data ──────────────────────────────── */
 const CHARM_DATA = [
   { id:'fire_cannon',  name:'火符・砲弾', damage:80,  target:'single',    status:null,        statusDuration:0,    chargeMs:3000, element:'fire'  },
-  { id:'fire_burn',    name:'火符・延焼', damage:30,  target:'single',    status:'burn',      statusDuration:3000, chargeMs:3500, element:'fire'  },
-  { id:'fire_slash',   name:'火符・傷焰', damage:25,  target:'fan3',      status:null,        statusDuration:0,    chargeMs:2800, element:'fire'  },
+  { id:'fire_burn',    name:'火符・傷焰', damage:30,  target:'single',    status:'burn',      statusDuration:3000, chargeMs:3500, element:'fire'  },
+  { id:'fire_slash',   name:'火符・狐群', damage:25,  target:'fan3',      status:null,        statusDuration:0,    chargeMs:2800, element:'fire'  },
   { id:'earth_rock',   name:'地符・礫弾', damage:60,  target:'single',    status:null,        statusDuration:0,    chargeMs:2500, element:'earth' },
-  { id:'earth_quake',  name:'地符・磐',   damage:50,  target:'areaAll',   status:'stun',      statusDuration:2000, chargeMs:5000, element:'earth' },
+  { id:'earth_quake',  name:'地符・磐座', damage:50,  target:'areaAll',   status:'stun',      statusDuration:2000, chargeMs:5000, element:'earth' },
   { id:'earth_root',   name:'地符・根付', damage:20,  target:'single',    status:'root',      statusDuration:4000, chargeMs:3000, element:'earth' },
   { id:'wind_shot',    name:'風符・迅弾', damage:45,  target:'single',    status:null,        statusDuration:0,    chargeMs:1500, element:'wind'  },
   { id:'wind_blade',   name:'風符・鎌鼬', damage:55,  target:'pierceAll', status:null,        statusDuration:0,    chargeMs:4000, element:'wind'  },
-  { id:'wind_vortex',  name:'風符・旋圧', damage:35,  target:'single',    status:'knockback', statusDuration:0,    chargeMs:2800, element:'wind'  },
+  { id:'wind_vortex',  name:'風符・昇旋', damage:35,  target:'single',    status:'knockback', statusDuration:0,    chargeMs:2800, element:'wind'  },
   { id:'water_drop',   name:'水符・羽弾', damage:40,  target:'single',    status:null,        statusDuration:0,    chargeMs:2500, element:'water' },
   { id:'water_mist',   name:'水符・銀霧', damage:20,  target:'areaAll',   status:'slow',      statusDuration:3000, chargeMs:4000, element:'water' },
-  { id:'water_freeze', name:'水符・凍',   damage:70,  target:'single',    status:'freeze',    statusDuration:2000, chargeMs:4500, element:'water' },
+  { id:'water_freeze', name:'水符・凍亀', damage:70,  target:'single',    status:'freeze',    statusDuration:2000, chargeMs:4500, element:'water' },
 ];
 
 /* ── CHARM_DEFS: 旧UI参照との互換レイヤー ────── */
