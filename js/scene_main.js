@@ -1,5 +1,12 @@
 'use strict';
 
+/* ── Ultimate Data ──────────────────────────── */
+const ULTIMATE_DATA = [
+  { id:'kaguya', name:'香山颪', yomi:'かぐやまおろし', unlockChapter:1, dmg:150 },
+  { id:'hyosen', name:'氷川叢雲', yomi:'ひょうせんむらくも', unlockChapter:3, dmg:80,  status:'slow', statusDuration:3000 },
+  { id:'hiroto', name:'广斗越天', yomi:'ひろとえてん',       unlockChapter:5, dmg:200 },
+];
+
 /* ══════════════════════════════════════════════ */
 class MainScene extends Phaser.Scene {
   constructor() { super({ key: 'MainScene' }); }
@@ -48,6 +55,7 @@ class MainScene extends Phaser.Scene {
         this.bagCharms     = sv.bagCharms || [];
         this.slotCharms    = sv.slotCharmIds.map(id => id ? ({ ...CHARM_DEFS.find(c => c.id === id) } || null) : null);
         this.charmTimers   = sv.charmTimers;
+        this.selectedUltId = sv.selectedUltId || 'kaguya';
       }
     }
 
@@ -64,6 +72,9 @@ class MainScene extends Phaser.Scene {
     this.paused    = false;
     this.bgmOn     = true;
     this.seOn      = true;
+    this.selectedUltId = this.selectedUltId || 'kaguya';
+    this._ultLpTimer   = null;
+    this._ultMenuVis   = false;
 
     this._bg();    this._kb();    this._hdr();
     this._grid();  this._slash(); this._bagBuild();
@@ -73,6 +84,7 @@ class MainScene extends Phaser.Scene {
     this._dlgBuild(); this._rmBuild();
     this._tooltipBuild();
     this._pauseBuild();
+    this._ultMenuBuild();
 
     this.onis    = this.add.group();
     this.bullets = this.add.group();
@@ -301,8 +313,13 @@ class MainScene extends Phaser.Scene {
 
   /* ── Super button (battle area BR) ─────── */
   _superBtn() {
-    this.sBtnBg  = this.add.rectangle(SB_X, SB_Y, 110, 40, 0x330011).setStrokeStyle(2, 0xff3388).setAlpha(0).setDepth(8);
-    this.sBtnTxt = this.add.text(SB_X, SB_Y, '★ 大技発動', { fontSize:'14px', color:'#ff88cc', fontFamily:'serif', fontStyle:'bold', stroke:'#000', strokeThickness:3 }).setOrigin(0.5).setAlpha(0).setDepth(9);
+    this.sBtnBg  = this.add.rectangle(SB_X, SB_Y, 120, 40, 0x330011).setStrokeStyle(2, 0xff3388).setAlpha(0).setDepth(8);
+    this.sBtnTxt = this.add.text(SB_X, SB_Y, '★ 香山颪', { fontSize:'14px', color:'#ff88cc', fontFamily:'serif', fontStyle:'bold', stroke:'#000', strokeThickness:3 }).setOrigin(0.5).setAlpha(0).setDepth(9);
+  }
+
+  _sbUpdate() {
+    const ult = ULTIMATE_DATA.find(u => u.id === this.selectedUltId);
+    if (ult) this.sBtnTxt.setText(`★ ${ult.name}`);
   }
 
   /* ── Battle overlay ─────────────────────── */
@@ -383,8 +400,9 @@ class MainScene extends Phaser.Scene {
       if (!this.paused && !this.dialogActive) this._pauseOpen();
       return;
     }
+    if (this._ultMenuVis) { this._ultMenuTap(x, y); return; }
     if (this.paused && y < BATTLE_H) {
-      if (this.dialogActive) return; // メッセージ中はPAUSEメニュー操作も無効
+      if (this.dialogActive) return;
       this._pauseTap(x, y); return;
     }
     if (this.dialogActive) { this._dlgNext(); return; }
@@ -393,11 +411,6 @@ class MainScene extends Phaser.Scene {
     if (this._upgVis) { this._upgTap(x, y); return; }
     if (this._cpVis)  { this._cpTap(x, y);  return; }
     if (this.phase === 'result') { this._resTap(x, y); return; }
-
-    // super button
-    if (this.gaugeReady && Math.abs(x - SB_X) < 58 && Math.abs(y - SB_Y) < 22) {
-      this._superAtk(); return;
-    }
 
     if (y < BATTLE_H) return;
 
@@ -678,6 +691,7 @@ class MainScene extends Phaser.Scene {
     this.gPct.setText(`${Math.floor(pct * 100)}%`);
     if (pct >= 1.0 && !this.gaugeReady) {
       this.gaugeReady = true;
+      this._sbUpdate();
       this.sBtnBg.setAlpha(1); this.sBtnTxt.setAlpha(1);
       this.tweens.add({ targets: [this.sBtnBg, this.sBtnTxt], alpha: { from:1, to:0.35 }, yoyo:true, repeat:-1, duration:450 });
     } else if (pct < 1.0 && this.gaugeReady) {
@@ -687,13 +701,102 @@ class MainScene extends Phaser.Scene {
     }
   }
 
-  _superAtk() {
+  /* ── Ultimate ───────────────────────────── */
+  _ultFire() {
     this.gauge = 0; this._gaugeUp();
-    for (const oni of this.onis.getChildren().filter(o => o.active)) {
-      this._oniDmg(oni, SUPER_DMG);
+    const ult = ULTIMATE_DATA.find(u => u.id === this.selectedUltId);
+    if (!ult) return;
+    switch (ult.id) {
+      case 'kaguya': this._ultKaguya(ult); break;
+      case 'hyosen': this._ultHyosen(ult); break;
+      case 'hiroto': this._ultHiroto(ult); break;
     }
-    this.ovBg.setAlpha(0.28);
-    this.time.delayedCall(220, () => this.ovBg.setAlpha(0));
+  }
+
+  _ultKaguya(ult) {
+    // 白い細長い衝撃波（幅8px・長さ80px）が正面に高速で飛ぶ
+    const sx = this._kbSX, sy = this._kbSY;
+    const g = this.add.graphics().setDepth(8);
+    g.fillStyle(0xffffff, 0.9); g.fillRect(0, -4, 80, 8);
+    g.x = sx; g.y = sy;
+    this.tweens.add({ targets: g, x: W + 100, duration: 280, ease: 'Power3',
+      onComplete: () => g.destroy() });
+    // 射線上（y±50）の全敵を貫通
+    for (const oni of this.onis.getChildren().filter(o => o.active)) {
+      if (Math.abs(oni.y - sy) < 50) this._oniDmg(oni, ult.dmg, 'wind');
+    }
+  }
+
+  _ultHyosen(ult) {
+    // 紫暗色オーバーレイがふわっと広がってフェード
+    const g = this.add.graphics().setDepth(8);
+    g.fillStyle(0x220044, 0.7); g.fillRect(0, 0, W, BATTLE_H);
+    g.setAlpha(0);
+    this.tweens.add({ targets: g, alpha: 1, duration: 400, yoyo: true, hold: 300,
+      onComplete: () => g.destroy() });
+    for (const oni of this.onis.getChildren().filter(o => o.active)) {
+      this._oniDmg(oni, ult.dmg, 'water');
+      applyStatus(oni, ult.status, ult.statusDuration, this);
+    }
+  }
+
+  _ultHiroto(ult) {
+    // 画面上部から巨大な光柱が降り注ぐ（白・半透明・幅390px）
+    const col = this.add.rectangle(W / 2, 0, W, BATTLE_H, 0xffffff, 0.5)
+      .setDepth(8).setOrigin(0.5, 0).setScale(1, 0);
+    this.tweens.add({ targets: col, scaleY: 1, duration: 280, ease: 'Power2',
+      onComplete: () => this.tweens.add({ targets: col, alpha: 0, duration: 400,
+        onComplete: () => col.destroy() }) });
+    for (const oni of this.onis.getChildren().filter(o => o.active)) {
+      this._oniDmg(oni, ult.dmg, 'fire');
+    }
+  }
+
+  /* ── Ultimate menu (長押し選択) ──────────── */
+  _ultMenuBuild() {
+    this._ultMenuItems = ULTIMATE_DATA.map(u => ({
+      id:  u.id,
+      bg:  this.add.rectangle(0, 0, 150, 40, 0x111122).setStrokeStyle(1, 0x6644aa).setAlpha(0).setDepth(28),
+      nm:  this.add.text(0, 0, u.name, { fontSize:'14px', color:'#ccaaff', fontFamily:'serif',
+             fontStyle:'bold', stroke:'#000', strokeThickness:2 }).setOrigin(0.5, 0.5).setAlpha(0).setDepth(29),
+      sub: this.add.text(0, 0, u.yomi, { fontSize:'9px',  color:'#887799', fontFamily:'serif',
+             stroke:'#000', strokeThickness:1 }).setOrigin(0.5, 0.5).setAlpha(0).setDepth(29),
+    }));
+  }
+
+  _ultMenuOpen() {
+    const available = ULTIMATE_DATA.filter(u => this.chapter >= u.unlockChapter);
+    if (available.length < 2) return;
+    this._ultMenuVis = true;
+    available.forEach((u, i) => {
+      const item = this._ultMenuItems.find(m => m.id === u.id);
+      const iy = SB_Y - 52 - i * 48;
+      const sel = u.id === this.selectedUltId;
+      item.bg.setPosition(SB_X, iy).setAlpha(1).setStrokeStyle(sel ? 2 : 1, sel ? 0xffcc44 : 0x6644aa);
+      item.nm.setPosition(SB_X, iy - 7).setAlpha(1);
+      item.sub.setPosition(SB_X, iy + 11).setAlpha(1);
+    });
+  }
+
+  _ultMenuClose() {
+    this._ultMenuVis = false;
+    for (const item of this._ultMenuItems) {
+      item.bg.setAlpha(0); item.nm.setAlpha(0); item.sub.setAlpha(0);
+    }
+  }
+
+  _ultMenuTap(x, y) {
+    const available = ULTIMATE_DATA.filter(u => this.chapter >= u.unlockChapter);
+    for (let i = 0; i < available.length; i++) {
+      const iy = SB_Y - 52 - i * 48;
+      if (Math.abs(x - SB_X) < 78 && Math.abs(y - iy) < 22) {
+        this.selectedUltId = available[i].id;
+        this._sbUpdate();
+        this._ultMenuClose();
+        return;
+      }
+    }
+    this._ultMenuClose();
   }
 
   /* ── Charm auto-fire ────────────────────── */
@@ -1165,6 +1268,7 @@ class MainScene extends Phaser.Scene {
       bagCharms:     this.bagCharms.map(c => ({ ...c })),
       slotCharmIds:  this.slotCharms.map(c => c ? c.id : null),
       charmTimers:   [...this.charmTimers],
+      selectedUltId: this.selectedUltId,
     });
   }
 
@@ -1447,7 +1551,16 @@ class MainScene extends Phaser.Scene {
 
   /* ── Long press / Tooltip ───────────────── */
   _lpStart(p) {
-    if (this._lpActive) return; // ツールチップ表示中はタイマーをリセットしない
+    if (this._lpActive) return;
+    // 大技ボタン長押し → 選択メニュー
+    if (Math.abs(p.x - SB_X) < 62 && Math.abs(p.y - SB_Y) < 24) {
+      if (this._ultLpTimer) { this._ultLpTimer.remove(false); this._ultLpTimer = null; }
+      this._ultLpTimer = this.time.delayedCall(500, () => {
+        this._ultLpTimer = null;
+        this._ultMenuOpen();
+      });
+      return;
+    }
     if (this._lpTimer) { this._lpTimer.remove(false); this._lpTimer = null; }
     const { x, y } = p;
     if (y < GRID_TOP || y >= GRID_BOT) return;
@@ -1463,6 +1576,12 @@ class MainScene extends Phaser.Scene {
   }
 
   _lpEnd(p) {
+    // 大技ボタン短押し → 発動
+    if (this._ultLpTimer) {
+      this._ultLpTimer.remove(false); this._ultLpTimer = null;
+      if (this.gaugeReady && !this.paused) this._ultFire();
+      return;
+    }
     if (this._lpTimer) { this._lpTimer.remove(false); this._lpTimer = null; }
   }
 
