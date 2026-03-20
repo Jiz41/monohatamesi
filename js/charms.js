@@ -206,18 +206,25 @@ function applyStatus(enemy, type, duration, scene) {
   // 既存タイマーをクリア（重複上書き）
   if (enemy._statusTimer)  { clearTimeout(enemy._statusTimer);   enemy._statusTimer  = null; }
   if (enemy._burnInterval) { clearInterval(enemy._burnInterval); enemy._burnInterval = null; }
+  if (enemy._burnEvent)    { enemy._burnEvent.remove(false);     enemy._burnEvent    = null; }
 
   switch (type) {
-    case 'burn':
-      enemy._burnInterval = setInterval(() => {
-        if (!enemy.active) { clearInterval(enemy._burnInterval); enemy._burnInterval = null; return; }
-        if (scene) scene._oniDmg(enemy, 15, 'fire');
-        else enemy.hp = Math.max(0, enemy.hp - 15);
-      }, 1000);
-      enemy._statusTimer = setTimeout(() => {
-        if (enemy._burnInterval) { clearInterval(enemy._burnInterval); enemy._burnInterval = null; }
-      }, duration);
+    case 'burn': {
+      if (!scene) break;
+      const ticks = Math.floor(duration / 1000);
+      let fired = 0;
+      enemy._burnEvent = scene.time.addEvent({
+        delay: 1000,
+        repeat: ticks - 1,
+        callback: () => {
+          fired++;
+          if (!enemy.active) { if (enemy._burnEvent) { enemy._burnEvent.remove(false); enemy._burnEvent = null; } return; }
+          scene._oniDmg(enemy, 15, 'fire');
+          if (fired >= ticks) enemy._burnEvent = null;
+        },
+      });
       break;
+    }
 
     case 'knockback':
       enemy.x += 80;
@@ -244,6 +251,35 @@ function fireCharm(id, scene) {
 
   const sx = scene._kbSX, sy = scene._kbSY;
   const tDur = _travelDuration(id);
+
+  /* water_mist：ゆっくり右へ流れる霧 ─────────── */
+  if (id === 'water_mist') {
+    const g = scene.add.graphics().setDepth(5);
+    g.fillStyle(0xC0C0C0, 0.4);
+    g.fillCircle(0, 0, 30);
+    g.x = sx; g.y = sy;
+    let mistActive = true;
+    scene.tweens.add({
+      targets: g,
+      x: W / 2,
+      scaleX: 50 / 30, scaleY: 50 / 30,
+      duration: 2500,
+      onComplete: () => { mistActive = false; g.destroy(); },
+    });
+    const mistEvt = scene.time.addEvent({
+      delay: 200,
+      loop: true,
+      callback: () => {
+        if (!mistActive) { mistEvt.remove(false); return; }
+        for (const oni of scene.onis.getChildren().filter(o => o.active)) {
+          if (Phaser.Math.Distance.Between(g.x, g.y, oni.x, oni.y) < 50) {
+            scene._oniDmg(oni, charm.damage, charm.element);
+          }
+        }
+      },
+    });
+    return;
+  }
 
   /* areaAll ─────────────────────────────────── */
   if (charm.target === 'areaAll') {
