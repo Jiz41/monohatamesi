@@ -267,10 +267,14 @@ function fireCharm(id, scene) {
     g.fillStyle(0xC0C0C0, 0.4);
     g.fillCircle(0, 0, 30);
     g.x = sx; g.y = sy;
+    const mistOnis = scene.onis.getChildren().filter(o => o.active);
+    const mistTarget = mistOnis.length ? mistOnis.reduce((a, b) => a.x < b.x ? a : b) : null;
+    const mistTx = mistTarget ? mistTarget.x : W / 2;
+    const mistTy = mistTarget ? mistTarget.y : sy;
     let mistActive = true;
     scene.tweens.add({
       targets: g,
-      x: W / 2,
+      x: mistTx, y: mistTy,
       scaleX: 50 / 30, scaleY: 50 / 30,
       duration: 2500,
       onComplete: () => { mistActive = false; g.destroy(); },
