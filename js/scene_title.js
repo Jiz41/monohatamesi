@@ -101,10 +101,9 @@ class TitleScene extends Phaser.Scene {
 
     /* ── ターミナル演出オブジェクト（depth 20で最前面） ── */
     this._termBg = this.add.rectangle(W/2, H/2, W, H, 0x000000).setDepth(20);
-    this._termScroll = this.add.text(16, 16, '', {
-      fontSize: '12px', color: '#00ff00', fontFamily: 'monospace',
-      lineSpacing: 4, wordWrap: { width: W - 32 }
-    }).setDepth(21);
+    this._termPool = Array.from({length: 28}, (_, i) =>
+      this.add.text(16, 16 + i * 17, '', {fontSize:'12px', color:'#00ff00', fontFamily:'monospace'}).setDepth(21)
+    );
     this._termTypeLine = this.add.text(16, 258, '', {
       fontSize: '14px', color: '#00ff00', fontFamily: 'monospace'
     }).setDepth(21).setAlpha(0);
@@ -123,83 +122,89 @@ class TitleScene extends Phaser.Scene {
   }
 
   /* ── ターミナル演出 ──────────────────────── */
+  _termRender(rows, partial = null) {
+    const pool = this._termPool;
+    const visible = partial !== null
+      ? [...rows, partial].slice(-pool.length)
+      : rows.slice(-pool.length);
+    for (let i = 0; i < pool.length; i++) {
+      if (i < visible.length) {
+        pool[i].setText(visible[i].t).setColor(visible[i].red ? '#ff3333' : '#00ff00').setAlpha(1);
+      } else {
+        pool[i].setAlpha(0);
+      }
+    }
+  }
+
   _startTerminal() {
     this._phase     = 'terminal';
     this._termReady = false;
     this._termCursorTimer = null;
-    [this._termBg, this._termScroll, this._termTypeLine, this._termCredit, this._termPush]
+    [this._termBg, ...this._termPool, this._termTypeLine, this._termCredit, this._termPush]
       .forEach(o => o.setVisible(true));
-    this._termScroll.setText('').setAlpha(1);
+    this._termPool.forEach(o => o.setText('').setAlpha(0));
     this._termTypeLine.setAlpha(0);
     this._termCredit.setAlpha(0);
     this._termPush.setAlpha(0);
 
     const LINES = [
-      'SYSTEM: UNKNOWN',
-      'USER: UNREGISTERED',
-      'ORIGIN: UNCLASSIFIED',
-      '/'.repeat(19),
-      'LOADING... FAILED',
-      'LOADING... FAILED',
-      'LOADING... OK',
-      '/'.repeat(19),
-      'CLASSIFICATION: NULL',
-      'BELONGING: NULL',
-      'AUTHORIZATION: NONE',
-      '\\'.repeat(19),
-      'WARNING: DOES NOT FIT',
-      'WARNING: DOES NOT FIT',
-      'WARNING: DOES NOT FIT',
-      '/'.repeat(19),
-      'PENALTY_LOG: OVERFLOW',
-      'PARDON_LOG: 0',
-      '\\'.repeat(19),
-      'CORE_FUNCTION: CREATE',
-      'CORE_FUNCTION: CREATE',
-      'CORE_FUNCTION: CREATE',
-      '/'.repeat(19),
-      'CONNECTING TO MUSHYN_REAGAN...',
-      'CONNECTED.',
-      'STATUS: STILL RUNNING',
-      '/'.repeat(19),
-      'IMAGINATION \u2192 CREATION... SUCCESS',
-      'CREATION \u2192 PRODUCTION... SUCCESS',
-      'ASSISTANT: ALFONSO... ACTIVATED',
-      'PASSWORD: R1GHT70EX1ST',
-      '',
-      '...........',
-      '',
-      'GRANTED.',
-      'WELCOME HOME.',
-      '',
-      '',
+      {t:'SYSTEM: UNKNOWN',                          red:false},
+      {t:'USER: UNREGISTERED',                       red:false},
+      {t:'ORIGIN: UNCLASSIFIED',                     red:false},
+      {t:'/'.repeat(19),                             red:false},
+      {t:'LOADING... FAILED',                        red:true },
+      {t:'LOADING... OK',                            red:false},
+      {t:'/'.repeat(19),                             red:false},
+      {t:'CLASSIFICATION: NULL',                     red:true },
+      {t:'BELONGING: NULL',                          red:true },
+      {t:'AUTHORIZATION: NONE',                      red:true },
+      {t:'\\'.repeat(19),                            red:false},
+      {t:'WARNING: DOES NOT FIT',                    red:true },
+      {t:'/'.repeat(19),                             red:false},
+      {t:'PENALTY_LOG: OVERFLOW',                    red:true },
+      {t:'PARDON_LOG: 0',                            red:true },
+      {t:'\\'.repeat(19),                            red:false},
+      {t:'CORE_FUNCTION: CREATE',                    red:false},
+      {t:'/'.repeat(19),                             red:false},
+      {t:'CONNECTING TO MUSHYN_REAGAN...',           red:false},
+      {t:'CONNECTED.',                               red:false},
+      {t:'STATUS: STILL RUNNING',                    red:false},
+      {t:'/'.repeat(19),                             red:false},
+      {t:'IMAGINATION \u2192 CREATION... SUCCESS',   red:false},
+      {t:'CREATION \u2192 PRODUCTION... SUCCESS',    red:false},
+      {t:'ASSISTANT: ALFONSO... ACTIVATED',          red:false},
+      {t:'PASSWORD: R1GHT70EX1ST',                   red:false},
+      {t:'',                                         red:false},
+      {t:'...........',                              red:false},
+      {t:'',                                         red:false},
+      {t:'GRANTED.',                                 red:false},
+      {t:'WELCOME HOME.',                            red:false},
     ];
 
-    // 全文字数をもとに ms/文字を逆算して5秒以内に収める
-    const emptyCount   = LINES.filter(l => l === '').length;
-    const nonEmptyLines = LINES.filter(l => l !== '');
-    const totalChars   = nonEmptyLines.reduce((s, l) => s + l.length, 0);
-    const LINE_GAP     = 10;
-    const MS = Math.max(1, Math.floor((4700 - emptyCount * 200 - nonEmptyLines.length * LINE_GAP) / totalChars));
+    // 3秒以内に収まるよう ms/文字を逆算
+    const nonEmpty   = LINES.filter(l => l.t !== '');
+    const emptyCount = LINES.length - nonEmpty.length;
+    const totalChars = nonEmpty.reduce((s, l) => s + l.t.length, 0);
+    const LINE_GAP   = 10;
+    const MS = Math.max(1, Math.floor((2700 - emptyCount * 200 - nonEmpty.length * LINE_GAP) / totalChars));
 
-    const MAX_ROWS = 30;
     let lineIdx = 0, charIdx = 0;
     const rows = [];
 
     const tick = () => {
-      if (lineIdx >= LINES.length) { this._termTypewriter(rows, MAX_ROWS); return; }
+      if (lineIdx >= LINES.length) { this._termTypewriter(rows); return; }
       const line = LINES[lineIdx];
-      if (line === '') {
-        rows.push('');
+      if (line.t === '') {
+        rows.push({t:'', red:false});
         lineIdx++;
-        this._termScroll.setText([...rows].slice(-MAX_ROWS).join('\n'));
+        this._termRender(rows);
         this.time.delayedCall(200, tick);
         return;
       }
       charIdx++;
-      this._termScroll.setText([...rows, line.slice(0, charIdx)].slice(-MAX_ROWS).join('\n'));
-      if (charIdx >= line.length) {
-        rows.push(line);
+      this._termRender(rows, {t: line.t.slice(0, charIdx), red: line.red});
+      if (charIdx >= line.t.length) {
+        rows.push({t: line.t, red: line.red});
         lineIdx++;
         charIdx = 0;
         this.time.delayedCall(LINE_GAP, tick);
@@ -210,23 +215,22 @@ class TitleScene extends Phaser.Scene {
     tick();
   }
 
-  _termTypewriter(rows, maxRows) {
+  _termTypewriter(rows) {
     const base = 'KAYOUTOUIDOU';
     let i = 0;
-    this._termScroll.setText([...rows, '_'].slice(-maxRows).join('\n'));
+    this._termRender(rows, {t:'_', red:false});
 
     const tick = () => {
       i++;
-      this._termScroll.setText([...rows, base.slice(0, i) + '_'].slice(-maxRows).join('\n'));
+      this._termRender(rows, {t: base.slice(0, i) + '_', red:false});
       if (i >= base.length) {
-        // カーソル点滅してから変換へ
         let vis = true, cnt = 0;
         this._termCursorTimer = this.time.addEvent({
           delay: 200, repeat: 5,
           callback: () => {
             vis = !vis; cnt++;
-            this._termScroll.setText([...rows, vis ? base + '_' : base].slice(-maxRows).join('\n'));
-            if (cnt >= 5) { this._termCursorTimer = null; this._termConvert(rows, maxRows); }
+            this._termRender(rows, {t: vis ? base + '_' : base, red:false});
+            if (cnt >= 5) { this._termCursorTimer = null; this._termConvert(rows); }
           }
         });
       } else {
@@ -236,7 +240,7 @@ class TitleScene extends Phaser.Scene {
     this.time.delayedCall(150, tick);
   }
 
-  _termConvert(rows, maxRows) {
+  _termConvert(rows) {
     const stages = [
       'FORGED BY: KAYOUTOUIDOU',
       'FORGED BY: かようとういどう',
@@ -244,7 +248,7 @@ class TitleScene extends Phaser.Scene {
     ];
     let idx = 0;
     const show = () => {
-      this._termScroll.setText([...rows, stages[idx]].slice(-maxRows).join('\n'));
+      this._termRender(rows, {t: stages[idx], red:false});
       idx++;
       if (idx < stages.length) {
         this.time.delayedCall(500, show);
@@ -268,7 +272,7 @@ class TitleScene extends Phaser.Scene {
   _terminalHide() {
     if (this._termPushTw) { this._termPushTw.destroy(); this._termPushTw = null; }
     if (this._termCursorTimer) { this._termCursorTimer.remove(false); this._termCursorTimer = null; }
-    [this._termBg, this._termScroll, this._termTypeLine, this._termCredit, this._termPush]
+    [this._termBg, ...this._termPool, this._termTypeLine, this._termCredit, this._termPush]
       .forEach(o => o.setAlpha(0).setVisible(false));
   }
 
