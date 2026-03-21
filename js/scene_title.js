@@ -292,7 +292,11 @@ class TitleScene extends Phaser.Scene {
   /* ── OP演出 ─────────────────────────────── */
   _startOp() {
     const loadIfMissing = (keys, onComplete) => {
-      const missing = keys.filter(k => !this.textures.exists(k));
+      const missing = keys.filter(k => {
+        if (!this.textures.exists(k)) return true;
+        const src = this.textures.get(k).getSourceImage();
+        return !src || src.width === 0;
+      });
       if (missing.length === 0) { onComplete(); return; }
       missing.forEach(k => {
         if (k === 'op_bg')      this.load.image('op_bg',      'op.jpg');
