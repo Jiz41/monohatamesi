@@ -23,6 +23,7 @@ class MainScene extends Phaser.Scene {
     this.load.image('oni-shuten',   'oni-shuten.png');
     this.load.image('oni-otake',    'oni-otake.png');
     this.load.image('oni-soranaki', 'oni-soranaki.png');
+    this.load.image('battle_bg',    'back.png');
     this.load.audio('bgm_battle', 'onisankochira.mp3');
     this.load.audio('bgm_shurai', 'shurai.mp3');
     this.load.audio('bgm_boss5',  'ushitoraMantra.mp3');
@@ -216,14 +217,9 @@ class MainScene extends Phaser.Scene {
 
   /* ── BG ─────────────────────────────────── */
   _bg() {
-    this.add.rectangle(W/2, BATTLE_H/2, W, BATTLE_H, 0x1a2e20).setDepth(0);
-    this.add.rectangle(W/2, 190, W, 280, 0x3a2910).setDepth(0); // 地面：Y=50〜330
-    this.add.rectangle(W/2, 6, W, 12, 0x223344).setDepth(0);
+    this.add.image(195, 165, 'battle_bg').setDisplaySize(390, 330).setDepth(0);
     this.add.rectangle(W/2, UI_Y0 + UI_H/2, W, UI_H, 0x0c100c).setDepth(0);
     this.add.rectangle(W/2, UI_Y0 + 1, W, 3, 0x44664a).setDepth(0);
-    this.add.rectangle(20, BATTLE_H/2, 40, BATTLE_H, 0x6e4e12).setDepth(1);
-    this.add.rectangle(20, BATTLE_H/2, 40, BATTLE_H).setStrokeStyle(2, 0xb89a30).setDepth(2);
-    this.add.text(20, 20, '門', { fontSize:'12px', color:'#ccaa44', fontFamily:'serif' }).setOrigin(0.5).setDepth(3);
     // PAUSEボタン（戦闘エリア右上）
     const pBtnBg = this.add.graphics().setDepth(20);
     pBtnBg.fillStyle(0x000000, 0.6);
@@ -239,6 +235,11 @@ class MainScene extends Phaser.Scene {
     const naturalH = this.kbSpr.height || 1;
     this.kbSpr.setDisplaySize(this.kbSpr.width * h / naturalH, h);
     this.kbSpr.setPosition(kx, ky); // setDisplaySize後に位置を再確定
+    const kow = this.kbSpr.displayWidth, koh = this.kbSpr.displayHeight;
+    [[-2,0],[2,0],[0,-2],[0,2]].forEach(([dx, dy]) => {
+      this.add.image(kx + dx, ky + dy, 'kibitsu')
+        .setDisplaySize(kow, koh).setTint(0xffffff).setAlpha(0.8).setDepth(2.9);
+    });
     // 弾発射基点（スプライト右端）を保存
     this._kbSX = kx + this.kbSpr.displayWidth / 2;
     this._kbSY = ky;
@@ -1167,6 +1168,11 @@ class MainScene extends Phaser.Scene {
 
     const body = this.add.image(ox, actualOy, imgKey).setOrigin(0.5, 0.5).setDepth(3);
     body.setDisplaySize(body.width * sprH / body.height, sprH);
+    const ow = body.displayWidth, oh = body.displayHeight;
+    body.outlines = [[-2,0],[2,0],[0,-2],[0,2]].map(([dx, dy]) =>
+      this.add.image(ox + dx, actualOy + dy, imgKey)
+        .setDisplaySize(ow, oh).setTint(0xffffff).setAlpha(0.8).setDepth(2.9)
+    );
 
     const barY   = actualOy - sprH / 2 - 6;
     const barH   = isBoss ? 7 : ONI_BH;
@@ -1194,9 +1200,13 @@ class MainScene extends Phaser.Scene {
     oni.hpBg.setPosition(oni.x - oni.bw/2, by);
     oni.hpFill.setPosition(oni.x - oni.bw/2, by);
     if (oni.attrLbl) oni.attrLbl.setPosition(oni.x, by - 24);
+    if (oni.outlines) {
+      const offs = [[-2,0],[2,0],[0,-2],[0,2]];
+      oni.outlines.forEach((o, i) => o.setPosition(oni.x + offs[i][0], oni.y + offs[i][1]));
+    }
   }
 
-  _oniRm(oni) { oni.lbl?.destroy(); oni.hpBg?.destroy(); oni.hpFill?.destroy(); oni.attrLbl?.destroy(); oni.destroy(); }
+  _oniRm(oni) { oni.lbl?.destroy(); oni.hpBg?.destroy(); oni.hpFill?.destroy(); oni.attrLbl?.destroy(); oni.outlines?.forEach(o => o.destroy()); oni.destroy(); }
 
   // UI要素のみ即時除去（ボディはアニメ後に破棄）
   _oniRmUI(oni) {
@@ -1206,6 +1216,7 @@ class MainScene extends Phaser.Scene {
     oni.attrLbl?.destroy(); oni.attrLbl = null;
     if (oni._burnEvent)   { oni._burnEvent.remove(false);     oni._burnEvent   = null; }
     if (oni._statusTimer) { clearTimeout(oni._statusTimer);   oni._statusTimer = null; }
+    oni.outlines?.forEach(o => o.destroy()); oni.outlines = null;
   }
 
   /* ── Death FX: 小鬼・中鬼・大鬼 ──────────── */
