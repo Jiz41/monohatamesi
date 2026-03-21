@@ -75,7 +75,7 @@ class MainScene extends Phaser.Scene {
     this.paused    = false;
     this.bgmVol    = loadOpts().bgmVol;
     this.bgmOn     = this.bgmVol > 0;
-    this.seOn      = true;
+    this.seVol     = loadOpts().seVol;
     this.bgmCurrent = null;
     this.selectedUltId = this.selectedUltId || 'kaguya';
     this._ultLpTimer   = null;
@@ -110,6 +110,8 @@ class MainScene extends Phaser.Scene {
       this.bgmCurrent.play();
       this.tweens.add({ targets: this.bgmCurrent, volume: this.bgmVol, duration: 1000 });
     }
+
+    this.events.on('shutdown', () => { this.sound.stopAll(); });
 
     // OPENINGシーン：はじめから選択時のみ表示
     if (_initType === 'new' && SCENARIO && SCENARIO.opening) {
@@ -1547,7 +1549,7 @@ class MainScene extends Phaser.Scene {
     this._pauseOv = this.add.rectangle(W/2, BATTLE_H/2, W, BATTLE_H, 0x000000, 0.7).setDepth(35).setVisible(false);
     // 4項目を戦闘エリア中央に配置（50px間隔、計150px、中心 BATTLE_H/2=165）
     const baseY = BATTLE_H / 2 - 75;
-    const labels = ['再開', '🔊 音あり', 'SE：ON', 'タイトルへ'];
+    const labels = ['再開', '音楽 ●ON', '効果音 ●ON', 'タイトルへ'];
     this._pauseItems = labels.map((lbl, i) =>
       this.add.text(W/2, baseY + i * 50, lbl, {
         fontSize:'24px', color:'#ffffff', fontFamily:'serif',
@@ -1570,8 +1572,10 @@ class MainScene extends Phaser.Scene {
     this.paused = true;
     this.tweens.pauseAll();
     this._pauseOv.setVisible(true);
-    this._pauseItems[1].setText(this.sound.mute ? '🔇 ミュート中' : '🔊 音あり');
-    this._pauseItems[2].setText(`SE：${this.seOn ? 'ON' : 'OFF'}`);
+    this._pauseItems[1].setText(this.bgmVol > 0 ? '音楽 ●ON' : '音楽 ○OFF')
+      .setStyle({ color: this.bgmVol > 0 ? '#ffffff' : '#888888', fontSize:'24px', fontFamily:'serif', stroke:'#000', strokeThickness:3 });
+    this._pauseItems[2].setText(this.seVol > 0 ? '効果音 ●ON' : '効果音 ○OFF')
+      .setStyle({ color: this.seVol > 0 ? '#ffffff' : '#888888', fontSize:'24px', fontFamily:'serif', stroke:'#000', strokeThickness:3 });
     for (const t of this._pauseItems) t.setVisible(true);
     this._pauseConfVis = false;
     for (const t of this._pauseConfItems) t.setVisible(false);
@@ -1612,10 +1616,31 @@ class MainScene extends Phaser.Scene {
       if (Math.abs(y - (baseY + i * 50)) < 22) {
         if (i === 0) { this._pauseClose(); }
         else if (i === 1) {
-          this.sound.mute = !this.sound.mute;
-          this._pauseItems[1].setText(this.sound.mute ? '🔇 ミュート中' : '🔊 音あり');
+          const opts = loadOpts();
+          if (this.bgmVol > 0) {
+            this.bgmVol = 0;
+            for (const snd of this.sound.getAll()) { if (snd.loop) snd.setVolume(0); }
+            saveOpts({ ...opts, bgmVol: 0 });
+          } else {
+            this.bgmVol = 0.7;
+            for (const snd of this.sound.getAll()) { if (snd.loop) snd.setVolume(0.7); }
+            saveOpts({ ...opts, bgmVol: 0.7 });
+          }
+          this._pauseItems[1].setText(this.bgmVol > 0 ? '音楽 ●ON' : '音楽 ○OFF')
+            .setStyle({ color: this.bgmVol > 0 ? '#ffffff' : '#888888', fontSize:'24px', fontFamily:'serif', stroke:'#000', strokeThickness:3 });
         }
-        else if (i === 2) { this.seOn  = !this.seOn;  this._pauseItems[2].setText(`SE：${this.seOn  ? 'ON' : 'OFF'}`); }
+        else if (i === 2) {
+          const opts = loadOpts();
+          if (this.seVol > 0) {
+            this.seVol = 0;
+            saveOpts({ ...opts, seVol: 0 });
+          } else {
+            this.seVol = 0.8;
+            saveOpts({ ...opts, seVol: 0.8 });
+          }
+          this._pauseItems[2].setText(this.seVol > 0 ? '効果音 ●ON' : '効果音 ○OFF')
+            .setStyle({ color: this.seVol > 0 ? '#ffffff' : '#888888', fontSize:'24px', fontFamily:'serif', stroke:'#000', strokeThickness:3 });
+        }
         else if (i === 3) {
           this._pauseConfVis = true;
           for (const t of this._pauseItems) t.setVisible(false);

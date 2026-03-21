@@ -14,6 +14,7 @@ class TitleScene extends Phaser.Scene {
   }
 
   create() {
+    this.sound.stopAll();
     this._opts    = loadOpts();
     this._hasSave = !!loadGame();
     this._opZoomDone = false;
@@ -124,7 +125,15 @@ class TitleScene extends Phaser.Scene {
     this.input.on('pointerdown', p => this._tap(p));
     this.input.on('pointermove', p => this._sliderMove(p));
     this.input.on('pointerup',   () => { this._dragging = null; });
-    this._startTerminal();
+    if (hasSeenTerminal) {
+      if (this._bgm && this._opts.bgmVol > 0) {
+        this._bgm.setVolume(this._opts.bgmVol);
+        this._bgm.play();
+      }
+      this._startOp();
+    } else {
+      this._startTerminal();
+    }
   }
 
   /* ── ターミナル演出 ──────────────────────── */
@@ -263,6 +272,7 @@ class TitleScene extends Phaser.Scene {
   }
 
   _termShowPush() {
+    hasSeenTerminal = true;
     this._termReady = true;
     let vis = true;
     this._termPush.setAlpha(1);
