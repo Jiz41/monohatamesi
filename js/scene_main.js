@@ -965,13 +965,13 @@ class MainScene extends Phaser.Scene {
     const attrPool = ['fire', 'water', 'earth', 'wind'];
     const attrChance = Math.min(1, (this.wave - 2) * 0.25);
     const attr = (this.wave >= 3 && Math.random() < attrChance) ? attrPool[Phaser.Math.Between(0, 3)] : 'none';
-    const sy = Phaser.Math.Between(130, 300);
+    const sy = Phaser.Math.Between(160, 290);
     this._makeOni(W, sy, named ? 48 : ONI_W, named ? 64 : ONI_H, col, stk, name, named ? '13px' : '20px', named ? '#ddaaff' : '#ffbbbb', hp, spd, dmg, bw, named ? EXP_N : EXP_G, false, imgKey, attr);
   }
 
   _spawnOgre() {
     // WAVE8-9：大鬼（isBoss=false）+ 小鬼の無限湧き、全滅でWAVEクリア
-    const sy = Phaser.Math.Between(130, 300);
+    const sy = Phaser.Math.Between(160, 290);
     this._makeOni(W, sy, 52, 78, 0x441100, 0xff8833, '【大鬼】', '13px', '#ffcc88', OGRE_HP, OGRE_SPD, OGRE_DMG, 66, 60, false, 'oni-large', 'none');
     const ogre = this.onis.getLast(true);
     ogre.isOgre = true;
@@ -1013,7 +1013,7 @@ class MainScene extends Phaser.Scene {
     const bossImg = BOSS_IMGS[chapIdx] || 'oni-ura';
     const attrPool = ['fire', 'water', 'earth', 'wind'];
     const attr = this.wave >= 2 ? attrPool[Phaser.Math.Between(0, 3)] : 'none';
-    const sy = Phaser.Math.Between(130, 300);
+    const sy = Phaser.Math.Between(160, 290);
     this._makeOni(W, sy, 56, 84, 0x220044, 0xff33ff, `【${name}】`, '13px', '#ff88ff', BOSS_HP, BOSS_SPD, BOSS_DMG, 72, EXP_B, true, bossImg, attr);
     this.onis.getLast(true).isNamed = true;
 
@@ -1044,7 +1044,7 @@ class MainScene extends Phaser.Scene {
     const attrPool = ['fire', 'water', 'earth', 'wind'];
     const attrChance = Math.min(1, (this.wave - 2) * 0.25);
     const attr = (this.wave >= 3 && Math.random() < attrChance) ? attrPool[Phaser.Math.Between(0, 3)] : 'none';
-    const sy = Phaser.Math.Between(130, 300);
+    const sy = Phaser.Math.Between(160, 290);
     this._makeOni(W, sy, named ? 48 : ONI_W, named ? 64 : ONI_H, col, stk, nm, named ? '13px' : '20px', named ? '#ddaaff' : '#ffbbbb', hp, spd, dmg, bw, named ? EXP_N : EXP_G, false, imgKey, attr);
   }
 
