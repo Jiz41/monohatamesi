@@ -32,7 +32,7 @@ class MainScene extends Phaser.Scene {
     this.kbHP = this.kbHPMax = 300;
     this.wave = 1;
     this.chapter = 1;
-    this.spawned = this.defeated = this.spawnTimer = this.bulTimer = 0;
+    this.spawned = this.defeated = this.spawnTimer = 0;
     this.dead = this.waveDone = this.bossSpawned = false;
     this.phase = 'battle';
     this.totalExp = 0;
@@ -99,9 +99,8 @@ class MainScene extends Phaser.Scene {
     this._ultMenuBuild();
     this._debugBuild();
 
-    this.onis    = this.add.group();
-    this.bullets = this.add.group();
-    this.sfx     = this.add.graphics().setDepth(10);
+    this.onis = this.add.group();
+    this.sfx  = this.add.graphics().setDepth(10);
 
     this.input.on('pointerdown', p => { this._lpStart(p); this._tap(p); });
     this.input.on('pointerup',   p => this._lpEnd(p));
@@ -200,26 +199,6 @@ class MainScene extends Phaser.Scene {
       }
       this._oniSync(oni);
       if (oni.x < -60) this._oniRm(oni);
-    }
-
-    // auto bullet
-    this.bulTimer += dt;
-    if (this.bulTimer >= BUL_MS) { this.bulTimer -= BUL_MS; this._bullet(); }
-
-    // move bullets + hit
-    const ol = this.onis.getChildren();
-    for (const b of [...this.bullets.getChildren()]) {
-      if (!b.active) continue;
-      b.x += b.vx * (dt / 1000); b.y += b.vy * (dt / 1000);
-      if (b.x > KB_X + BUL_RNG || b.x > W + 20 || b.x < -20 || b.y < -20 || b.y > BATTLE_H + 20) {
-        b.destroy(); continue;
-      }
-      for (const oni of ol) {
-        if (!oni.active) continue;
-        if (Phaser.Math.Distance.Between(b.x, b.y, oni.x, oni.y) < 26) {
-          b.destroy(); this._oniDmg(oni, b.dmg || BUL_DMG, b.attr || 'none'); break;
-        }
-      }
     }
 
     // 空無童子：平和タイマー加算
@@ -893,15 +872,6 @@ class MainScene extends Phaser.Scene {
     fireCharm(c.id, this);
   }
 
-  _spell(t, dmg, col, attr = 'none') {
-    if (!t?.active) return;
-    const sx = this._kbSX, sy = this._kbSY;
-    const dx = t.x - sx, dy = t.y - sy, len = Math.hypot(dx, dy) || 1;
-    const b = this.add.circle(sx, sy, 8, col || 0x44bbff).setDepth(3);
-    b.vx = BUL_SPD * dx / len; b.vy = BUL_SPD * dy / len; b.dmg = dmg; b.attr = attr;
-    this.bullets.add(b);
-  }
-
   _beamFx(ang) {
     const sx = this._kbSX, sy = this._kbSY;
     const g = this.add.graphics().setDepth(8);
@@ -1397,18 +1367,6 @@ class MainScene extends Phaser.Scene {
     if (this.kbHP <= 0) this._gameOver();
   }
 
-  _bullet() {
-    const list = this.onis.getChildren().filter(o => o.active);
-    if (!list.length) return;
-    const t = list.reduce((a, b) => a.x < b.x ? a : b);
-    if (t.x - KB_X > BUL_RNG) return;
-    const sx = this._kbSX, sy = this._kbSY;
-    const dx = t.x - sx, dy = t.y - sy, len = Math.hypot(dx, dy) || 1;
-    const b = this.add.circle(sx, sy, 8, 0x44bbff).setDepth(3);
-    b.vx = BUL_SPD * dx / len; b.vy = BUL_SPD * dy / len; b.dmg = BUL_DMG;
-    this.bullets.add(b);
-  }
-
   _healOnWaveClear() {
     const heal = Math.floor(this.kbHPMax * 0.1);
     this.kbHP = Math.min(this.kbHPMax, this.kbHP + heal);
@@ -1739,7 +1697,6 @@ class MainScene extends Phaser.Scene {
     if (this._sorShakeTimer)  { this._sorShakeTimer.remove(false);  this._sorShakeTimer  = null; }
     if (this._sorGlitchTimer) { this._sorGlitchTimer.remove(false); this._sorGlitchTimer = null; }
     for (const oni of [...this.onis.getChildren()]) { if (oni.active) { this._oniRmUI(oni); oni.destroy(); } }
-    for (const b   of [...this.bullets.getChildren()]) { b.destroy(); }
     this.soranaki = null;
     const wic = ((this.wave - 1) % 10) + 1;
     if (wic === 10) this._waveClearBoss();
@@ -1751,7 +1708,6 @@ class MainScene extends Phaser.Scene {
     if (this._sorShakeTimer)  { this._sorShakeTimer.remove(false);  this._sorShakeTimer  = null; }
     if (this._sorGlitchTimer) { this._sorGlitchTimer.remove(false); this._sorGlitchTimer = null; }
     for (const oni of [...this.onis.getChildren()]) { if (oni.active) { this._oniRmUI(oni); oni.destroy(); } }
-    for (const b   of [...this.bullets.getChildren()]) { b.destroy(); }
     this.wave    = (ch - 1) * 10 + 1;
     this.chapter = ch;
     this.spawned = this.defeated = this.spawnTimer = 0;
