@@ -291,6 +291,29 @@ class TitleScene extends Phaser.Scene {
 
   /* ── OP演出 ─────────────────────────────── */
   _startOp() {
+    // テクスチャ消失ガード（MainSceneからの戻りでキャッシュが抜ける場合がある）
+    const needOp   = !this.textures.exists('op_bg');
+    const needLogo = !this.textures.exists('title_logo');
+    if (needOp || needLogo) {
+      if (needOp)   this.load.image('op_bg',      'op.jpg');
+      if (needLogo) this.load.image('title_logo', 'title.png');
+      this.load.once('complete', () => { this._startOp(); });
+      this.load.start();
+      return;
+    }
+    // テクスチャを再適用し、スケールを再計算
+    {
+      const src = this.textures.get('op_bg').getSourceImage();
+      this._opBaseScale = (src.width > 0 && src.height > 0)
+        ? Math.max(W / src.width, H / src.height)
+        : 1;
+      this._opBg.setTexture('op_bg').setScale(this._opBaseScale);
+    }
+    this._opLogo.setTexture('title_logo');
+    if (this._opLogo.width > 0) {
+      this._opLogo.setScale((W * 0.75) / this._opLogo.width);
+    }
+
     this._phase      = 'op';
     this._opZoomDone = false;
 
