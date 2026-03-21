@@ -45,7 +45,7 @@ function saveGame(d)  { try { localStorage.setItem(SAVE_KEY, JSON.stringify(d));
 function loadGame()   { try { const s = localStorage.getItem(SAVE_KEY); return s ? JSON.parse(s) : null; } catch(e){ return null; } }
 function deleteSave() { try { localStorage.removeItem(SAVE_KEY); } catch(e){} }
 function saveOpts(o)  { try { localStorage.setItem(OPTS_KEY, JSON.stringify(o)); } catch(e){} }
-function loadOpts()   { try { const s = localStorage.getItem(OPTS_KEY); return s ? JSON.parse(s) : { bgm:true, se:true }; } catch(e){ return { bgm:true, se:true }; } }
+function loadOpts()   { try { const s = localStorage.getItem(OPTS_KEY); const o = s ? JSON.parse(s) : {}; return { bgmVol: o.bgmVol != null ? o.bgmVol : 0.7, seVol: o.seVol != null ? o.seVol : 0.8 }; } catch(e){ return { bgmVol: 0.7, seVol: 0.8 }; } }
 
 /* ── Layout ────────────────────────────────── */
 const W        = 390;

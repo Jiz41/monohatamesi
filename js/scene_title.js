@@ -83,16 +83,20 @@ class TitleScene extends Phaser.Scene {
     this._optsObjs.push(this.add.text(W/2, 210, 'オプション', {
       fontSize:'26px', color:'#ffdd88', fontFamily:'serif', fontStyle:'bold'
     }).setOrigin(0.5).setDepth(1));
-    this._optBtns = [
-      { label:'BGM', key:'bgm', y:370 },
-      { label:'SE',  key:'se',  y:480 },
+    const TRACK_W = 220, TRACK_X = W / 2;
+    this._optSliders = [
+      { key: 'bgmVol', label: 'BGM', labelY: 320, trackY: 370 },
+      { key: 'seVol',  label: 'SE',  labelY: 460, trackY: 510 },
     ].map(item => {
-      const bg  = this.add.rectangle(W/2, item.y, 280, 70, 0x0a1822).setStrokeStyle(2, 0x336688).setDepth(1);
-      const lbl = this.add.text(W/2 - 70, item.y, item.label, { fontSize:'22px', color:'#aaccff', fontFamily:'serif' }).setOrigin(0.5).setDepth(2);
-      const val = this.add.text(W/2 + 70, item.y, 'ON', { fontSize:'22px', color:'#44ffaa', fontFamily:'Arial', fontStyle:'bold' }).setOrigin(0.5).setDepth(2);
-      this._optsObjs.push(bg, lbl, val);
-      return { bg, lbl, val, key: item.key, y: item.y };
+      const lbl   = this.add.text(TRACK_X, item.labelY, item.label, {
+        fontSize:'22px', color:'#aaccff', fontFamily:'serif'
+      }).setOrigin(0.5).setDepth(2);
+      const track = this.add.rectangle(TRACK_X, item.trackY, TRACK_W, 4, 0x888888).setOrigin(0.5).setDepth(2);
+      const knob  = this.add.arc(TRACK_X, item.trackY, 10, 0, 360, false, 0xffffff).setDepth(3);
+      this._optsObjs.push(lbl, track, knob);
+      return { key: item.key, trackY: item.trackY, trackX: TRACK_X, trackW: TRACK_W, lbl, track, knob };
     });
+    this._dragging = null;
     this._optsCnl = this.add.text(W/2, 630, '戻る', { fontSize:'18px', color:'#667766', fontFamily:'Arial' }).setOrigin(0.5).setDepth(2);
     this._optsObjs.push(this._optsCnl);
 
@@ -118,6 +122,8 @@ class TitleScene extends Phaser.Scene {
     this._termReady  = false;
 
     this.input.on('pointerdown', p => this._tap(p));
+    this.input.on('pointermove', p => this._sliderMove(p));
+    this.input.on('pointerup',   () => { this._dragging = null; });
     this._startTerminal();
   }
 
@@ -393,10 +399,29 @@ class TitleScene extends Phaser.Scene {
   }
 
   _refreshOpts() {
-    for (const b of this._optBtns) {
-      const on = this._opts[b.key];
-      b.val.setText(on ? 'ON' : 'OFF').setStyle({ color: on ? '#44ffaa' : '#aa4444', fontSize:'22px', fontFamily:'Arial', fontStyle:'bold' });
+    for (const s of this._optSliders) {
+      const vol  = this._opts[s.key];
+      const knobX = s.trackX - s.trackW / 2 + vol * s.trackW;
+      s.knob.setX(knobX);
     }
+  }
+
+  _applySlider(s, px) {
+    const left = s.trackX - s.trackW / 2;
+    const vol  = Math.max(0, Math.min(1, (px - left) / s.trackW));
+    this._opts[s.key] = +vol.toFixed(2);
+    s.knob.setX(left + vol * s.trackW);
+    saveOpts(this._opts);
+    if (s.key === 'bgmVol') {
+      for (const snd of this.sound.getAllPlaying()) {
+        if (snd.loop) snd.setVolume(vol);
+      }
+    }
+  }
+
+  _sliderMove(p) {
+    if (!this._dragging || this._phase !== 'opts') return;
+    this._applySlider(this._dragging, p.x);
   }
 
   /* ── タップ処理 ─────────────────────────── */
@@ -407,7 +432,10 @@ class TitleScene extends Phaser.Scene {
     if (this._phase === 'terminal') {
       if (!this._termReady) return;
       this._terminalHide();
-      if (this._bgm && this._opts.bgm) this._bgm.play();
+      if (this._bgm && this._opts.bgmVol > 0) {
+        this._bgm.setVolume(this._opts.bgmVol);
+        this._bgm.play();
+      }
       this._startOp();
       return;
     }
@@ -441,17 +469,10 @@ class TitleScene extends Phaser.Scene {
     // オプション
     if (this._phase === 'opts') {
       if (Math.abs(y - this._optsCnl.y) < 28) { this._setPhase('title'); return; }
-      for (const btn of this._optBtns) {
-        if (Math.abs(y - btn.y) < 38) {
-          this._opts[btn.key] = !this._opts[btn.key];
-          saveOpts(this._opts);
-          this._refreshOpts();
-          if (btn.key === 'bgm') {
-            if (this._bgm) {
-              if (this._opts.bgm) { if (!this._bgm.isPlaying) this._bgm.play(); }
-              else                { this._bgm.stop(); }
-            }
-          }
+      for (const s of this._optSliders) {
+        if (Math.abs(y - s.trackY) < 24) {
+          this._dragging = s;
+          this._applySlider(s, x);
           return;
         }
       }

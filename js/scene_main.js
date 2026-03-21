@@ -73,7 +73,8 @@ class MainScene extends Phaser.Scene {
     this._lpTimer  = null;
     this._lpActive = false;
     this.paused    = false;
-    this.bgmOn     = loadOpts().bgm !== false;
+    this.bgmVol    = loadOpts().bgmVol;
+    this.bgmOn     = this.bgmVol > 0;
     this.seOn      = true;
     this.bgmCurrent = null;
     this.selectedUltId = this.selectedUltId || 'kaguya';
@@ -107,7 +108,7 @@ class MainScene extends Phaser.Scene {
     if (this.bgmOn) {
       this.bgmCurrent = this.sound.add('bgm_battle', { loop: true, volume: 0 });
       this.bgmCurrent.play();
-      this.tweens.add({ targets: this.bgmCurrent, volume: 1, duration: 1000 });
+      this.tweens.add({ targets: this.bgmCurrent, volume: this.bgmVol, duration: 1000 });
     }
 
     // OPENINGシーン：はじめから選択時のみ表示
@@ -985,7 +986,7 @@ class MainScene extends Phaser.Scene {
         prev.stop();
         this.bgmCurrent = this.sound.add(bossBgmKey, { loop: true, volume: 0 });
         this.bgmCurrent.play();
-        this.tweens.add({ targets: this.bgmCurrent, volume: 1, duration: fadeMs });
+        this.tweens.add({ targets: this.bgmCurrent, volume: this.bgmVol, duration: fadeMs });
       }});
     }
     // 各章末WAVE（10・20・30・40・50）でボス登場台詞を発火
@@ -1316,7 +1317,7 @@ class MainScene extends Phaser.Scene {
         prev.stop();
         this.bgmCurrent = this.sound.add('bgm_battle', { loop: true, volume: 0 });
         this.bgmCurrent.play();
-        this.tweens.add({ targets: this.bgmCurrent, volume: 1, duration: 1000 });
+        this.tweens.add({ targets: this.bgmCurrent, volume: this.bgmVol, duration: 1000 });
       }});
     }
   }
@@ -1546,7 +1547,7 @@ class MainScene extends Phaser.Scene {
     this._pauseOv = this.add.rectangle(W/2, BATTLE_H/2, W, BATTLE_H, 0x000000, 0.7).setDepth(35).setVisible(false);
     // 4項目を戦闘エリア中央に配置（50px間隔、計150px、中心 BATTLE_H/2=165）
     const baseY = BATTLE_H / 2 - 75;
-    const labels = ['再開', 'BGM：ON', 'SE：ON', 'タイトルへ'];
+    const labels = ['再開', '🔊 音あり', 'SE：ON', 'タイトルへ'];
     this._pauseItems = labels.map((lbl, i) =>
       this.add.text(W/2, baseY + i * 50, lbl, {
         fontSize:'24px', color:'#ffffff', fontFamily:'serif',
@@ -1569,7 +1570,7 @@ class MainScene extends Phaser.Scene {
     this.paused = true;
     this.tweens.pauseAll();
     this._pauseOv.setVisible(true);
-    this._pauseItems[1].setText(`BGM：${this.bgmOn ? 'ON' : 'OFF'}`);
+    this._pauseItems[1].setText(this.sound.mute ? '🔇 ミュート中' : '🔊 音あり');
     this._pauseItems[2].setText(`SE：${this.seOn ? 'ON' : 'OFF'}`);
     for (const t of this._pauseItems) t.setVisible(true);
     this._pauseConfVis = false;
@@ -1611,15 +1612,8 @@ class MainScene extends Phaser.Scene {
       if (Math.abs(y - (baseY + i * 50)) < 22) {
         if (i === 0) { this._pauseClose(); }
         else if (i === 1) {
-          this.bgmOn = !this.bgmOn;
-          this._pauseItems[1].setText(`BGM：${this.bgmOn ? 'ON' : 'OFF'}`);
-          if (this.bgmOn) {
-            this.bgmCurrent = this.sound.add('bgm_battle', { loop: true, volume: 1 });
-            this.bgmCurrent.play();
-          } else if (this.bgmCurrent) {
-            this.bgmCurrent.stop();
-            this.bgmCurrent = null;
-          }
+          this.sound.mute = !this.sound.mute;
+          this._pauseItems[1].setText(this.sound.mute ? '🔇 ミュート中' : '🔊 音あり');
         }
         else if (i === 2) { this.seOn  = !this.seOn;  this._pauseItems[2].setText(`SE：${this.seOn  ? 'ON' : 'OFF'}`); }
         else if (i === 3) {
