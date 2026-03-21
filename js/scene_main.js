@@ -1,5 +1,7 @@
 'use strict';
 
+const DEBUG = true; // 本番リリース時は false に
+
 /* ── Ultimate Data ──────────────────────────── */
 const ULTIMATE_DATA = [
   { id:'kaguya', name:'香山颪', yomi:'かぐやまおろし', unlockChapter:1, dmg:150 },
@@ -95,6 +97,7 @@ class MainScene extends Phaser.Scene {
     this._tooltipBuild();
     this._pauseBuild();
     this._ultMenuBuild();
+    this._debugBuild();
 
     this.onis    = this.add.group();
     this.bullets = this.add.group();
@@ -431,6 +434,18 @@ class MainScene extends Phaser.Scene {
   _tap(ptr) {
     const { x, y } = ptr;
     if (this._lpActive) return;
+    // デバッグボタン
+    if (DEBUG) {
+      if (x >= 4 && x <= 80 && y >= 3 && y <= 24) { this._dbgWaveSkip(); return; }
+      if (x >= 4 && x <= 80 && y >= 27 && y <= 48) { this._dbgJumpToggle(); return; }
+      if (this._dbgJumpVisible) {
+        if (Math.abs(x - W/2) < 60 && Math.abs(y - 308) < 16) { this._dbgJumpUiHide(); return; }
+        for (let ch = 1; ch <= 5; ch++) {
+          if (Math.abs(x - W/2) < 100 && Math.abs(y - (56 + ch * 44)) < 17) { this._dbgJump(ch); return; }
+        }
+        return;
+      }
+    }
     // PAUSEボタン（戦闘エリア右上 355-385, 0-30）
     if (x >= 355 && x <= 385 && y >= 0 && y <= 30) {
       if (!this.paused && !this.dialogActive) this._pauseOpen();
@@ -1676,6 +1691,80 @@ class MainScene extends Phaser.Scene {
       this._dlgOnComplete = null;
       cb();
     }
+  }
+
+  /* ── Debug ──────────────────────────────── */
+  _debugBuild() {
+    if (!DEBUG) return;
+    // WAVE SKIP ボタン（左上 4-80, 3-24）
+    this.add.rectangle(42, 13, 76, 20, 0x221100, 0.85).setStrokeStyle(1, 0xff6600).setDepth(38);
+    this.add.text(42, 13, 'WAVE SKIP', { fontSize:'9px', color:'#ff8833', fontFamily:'monospace' }).setOrigin(0.5).setDepth(39);
+    // JUMP ボタン（左上 4-80, 27-48）
+    this.add.rectangle(42, 37, 76, 20, 0x001122, 0.85).setStrokeStyle(1, 0x3388ff).setDepth(38);
+    this.add.text(42, 37, 'JUMP', { fontSize:'9px', color:'#3399ff', fontFamily:'monospace' }).setOrigin(0.5).setDepth(39);
+
+    // ジャンプ選択UI（初期非表示）
+    this._dbgJumpObjs = [];
+    this._dbgJumpObjs.push(
+      this.add.rectangle(W/2, BATTLE_H/2, W, BATTLE_H, 0x000000, 0.85).setDepth(60).setVisible(false)
+    );
+    for (let ch = 1; ch <= 5; ch++) {
+      const by = 56 + ch * 44;
+      this._dbgJumpObjs.push(
+        this.add.rectangle(W/2, by, 210, 32, 0x112233).setStrokeStyle(1, 0x3388ff).setDepth(61).setVisible(false),
+        this.add.text(W/2, by, `${ch}章  WAVE ${(ch - 1) * 10 + 1}`, { fontSize:'14px', color:'#aaddff', fontFamily:'monospace' }).setOrigin(0.5).setDepth(62).setVisible(false)
+      );
+    }
+    this._dbgJumpObjs.push(
+      this.add.rectangle(W/2, 308, 120, 28, 0x221111).setStrokeStyle(1, 0x884422).setDepth(61).setVisible(false),
+      this.add.text(W/2, 308, '閉じる', { fontSize:'12px', color:'#cc6644', fontFamily:'monospace' }).setOrigin(0.5).setDepth(62).setVisible(false)
+    );
+    this._dbgJumpVisible = false;
+  }
+
+  _dbgJumpToggle() {
+    if (!this._dbgJumpObjs) return;
+    this._dbgJumpVisible = !this._dbgJumpVisible;
+    this._dbgJumpObjs.forEach(o => o.setVisible(this._dbgJumpVisible));
+  }
+
+  _dbgJumpUiHide() {
+    this._dbgJumpVisible = false;
+    this._dbgJumpObjs?.forEach(o => o.setVisible(false));
+  }
+
+  _dbgWaveSkip() {
+    if (this.waveDone || this.dead) return;
+    this._stopBossTimers();
+    if (this._sorShakeTimer)  { this._sorShakeTimer.remove(false);  this._sorShakeTimer  = null; }
+    if (this._sorGlitchTimer) { this._sorGlitchTimer.remove(false); this._sorGlitchTimer = null; }
+    for (const oni of [...this.onis.getChildren()]) { if (oni.active) { this._oniRmUI(oni); oni.destroy(); } }
+    for (const b   of [...this.bullets.getChildren()]) { b.destroy(); }
+    this.soranaki = null;
+    const wic = ((this.wave - 1) % 10) + 1;
+    if (wic === 10) this._waveClearBoss();
+    else            this._waveClear();
+  }
+
+  _dbgJump(ch) {
+    this._stopBossTimers();
+    if (this._sorShakeTimer)  { this._sorShakeTimer.remove(false);  this._sorShakeTimer  = null; }
+    if (this._sorGlitchTimer) { this._sorGlitchTimer.remove(false); this._sorGlitchTimer = null; }
+    for (const oni of [...this.onis.getChildren()]) { if (oni.active) { this._oniRmUI(oni); oni.destroy(); } }
+    for (const b   of [...this.bullets.getChildren()]) { b.destroy(); }
+    this.wave    = (ch - 1) * 10 + 1;
+    this.chapter = ch;
+    this.spawned = this.defeated = this.spawnTimer = 0;
+    this.waveDone = this.bossSpawned = false;
+    this.soranaki = null; this._sorPeaceMs = 0; this._sorClearDone = false;
+    // BGM を通常戦闘に戻す
+    if (this.bgmOn && this.bgmCurrent) {
+      this.bgmCurrent.stop();
+      this.bgmCurrent = this.sound.add('bgm_battle', { loop: true, volume: this.bgmVol });
+      this.bgmCurrent.play();
+    }
+    this._hdrUp(); this._gridUp();
+    this._dbgJumpUiHide();
   }
 
   /* ── Pause ──────────────────────────────── */
