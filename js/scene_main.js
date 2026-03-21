@@ -238,7 +238,7 @@ class MainScene extends Phaser.Scene {
     const kow = this.kbSpr.displayWidth, koh = this.kbSpr.displayHeight;
     [[-4,0],[4,0],[0,-4],[0,4],[-3,-3],[3,-3],[-3,3],[3,3]].forEach(([dx, dy]) => {
       this.add.image(kx + dx, ky + dy, 'kibitsu')
-        .setDisplaySize(kow, koh).setTint(0xffffff).setAlpha(0.8).setDepth(2.9);
+        .setDisplaySize(kow, koh).setTintFill(0xffffff).setAlpha(0.8).setDepth(2.9);
     });
     // 弾発射基点（スプライト右端）を保存
     this._kbSX = kx + this.kbSpr.displayWidth / 2;
@@ -1171,7 +1171,7 @@ class MainScene extends Phaser.Scene {
     const sprW = body.displayWidth, sprH2 = body.displayHeight;
     body.outlines = [[-4,0],[4,0],[0,-4],[0,4],[-3,-3],[3,-3],[-3,3],[3,3]].map(([dx, dy]) =>
       this.add.image(ox + dx, actualOy + dy, imgKey)
-        .setDisplaySize(sprW, sprH2).setTint(0xffffff).setAlpha(0.8).setDepth(2.9)
+        .setDisplaySize(sprW, sprH2).setTintFill(0xffffff).setAlpha(0.8).setDepth(2.9)
     );
 
     const barY   = actualOy - sprH / 2 - 6;
