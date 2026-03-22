@@ -1009,8 +1009,6 @@ class MainScene extends Phaser.Scene {
   }
 
   _bossIntroLock(onDone) {
-    const chapIdx  = Math.min(this.chapter - 1, BOSS_NAMES_BY_CHAPTER.length - 1);
-    const bossName = BOSS_NAMES_BY_CHAPTER[chapIdx];
     const warnBody = this.chapter === 5
       ? 'とてつもなく\n恐ろしい鬼の\n気配がする……'
       : '恐ろしい鬼の\n気配がする……';
@@ -1021,11 +1019,6 @@ class MainScene extends Phaser.Scene {
     const warnTxt = this.add.text(W/2, BATTLE_H/2 - 20, warnBody, {
       fontSize: '22px', color: '#ff3333', fontFamily: 'serif', fontStyle: 'bold',
       stroke: '#000000', strokeThickness: 8, align: 'center', lineSpacing: 8,
-    }).setOrigin(0.5).setAlpha(0).setDepth(51);
-
-    const nameTxt = this.add.text(W/2, BATTLE_H/2, `【${bossName}】`, {
-      fontSize: '32px', color: '#ff88ff', fontFamily: 'serif', fontStyle: 'bold',
-      stroke: '#000', strokeThickness: 6,
     }).setOrigin(0.5).setAlpha(0).setDepth(51);
 
     this.tweens.add({ targets: overlay, alpha: 0.88, duration: 500, onComplete: () => {
@@ -1045,19 +1038,13 @@ class MainScene extends Phaser.Scene {
         callback: () => { warnTxt.setX(W/2 + (Math.random() - 0.5) * 14); },
       });
 
-      // 1500ms後：警告終了 → ボス名へ
+      // 1500ms後：警告→フェードアウト→ダイアログ接続
       this.time.delayedCall(1500, () => {
         flashTimer.remove(); shakeTimer.remove(); warnTxt.setX(W/2);
-        this.tweens.add({ targets: warnTxt, alpha: 0, duration: 300, onComplete: () => {
-          warnTxt.destroy();
-          this.tweens.add({ targets: nameTxt, alpha: 1, duration: 400 });
-          this.time.delayedCall(1800, () => {
-            this.tweens.add({ targets: [overlay, nameTxt], alpha: 0, duration: 500, onComplete: () => {
-              overlay.destroy(); nameTxt.destroy();
-              this.dialogActive = false;
-              if (onDone) onDone();
-            }});
-          });
+        this.tweens.add({ targets: [overlay, warnTxt], alpha: 0, duration: 500, onComplete: () => {
+          overlay.destroy(); warnTxt.destroy();
+          this.dialogActive = false;
+          if (onDone) onDone();
         }});
       });
     }});
