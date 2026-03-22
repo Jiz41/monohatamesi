@@ -1188,27 +1188,44 @@ class MainScene extends Phaser.Scene {
     if (s.hpBg)    targets.push(s.hpBg);
     if (s.hpFill)  targets.push(s.hpFill);
     if (s.attrLbl) targets.push(s.attrLbl);
+    if (s.outlines) s.outlines.forEach(o => targets.push(o)); // 輪郭スプライトも砂化対象に
 
     this.tweens.add({
       targets, alpha: 0, duration: 2000,
       onComplete: () => {
+        // 輪郭スプライト明示的破棄
+        s.outlines?.forEach(o => o.destroy()); s.outlines = null;
+
+        // ボス戦BGMフェードアウト（砂化完了と同時）
+        if (this.bgmOn && this.bgmCurrent) {
+          const prev = this.bgmCurrent;
+          this.bgmCurrent = null;
+          this.tweens.add({ targets: prev, volume: 0, duration: 1500, onComplete: () => prev.stop() });
+        }
+
         this._healOnWaveClear();
         this._saveGame();
-        this._ov('WAVE CLEAR!', '#ffff44', `WAVE ${this.wave} 撃退成功！`);
-        this.time.delayedCall(1800, () => { this._ovHide(); this._endingFlow(); });
+
+        // 独白開始（砂化完了後）
+        const monologue = SCENARIO?.ending?.monologue;
+        if (monologue?.length) {
+          this._dlgShow(monologue, () => this._endingFlow());
+        } else {
+          this._endingFlow();
+        }
       }
     });
   }
 
   _endingFlow() {
-    if (!SCENARIO?.ending) { this.scene.start('EndingScene'); return; }
+    // monologue完了後：momotaro → ending_narration → EndingScene
+    if (!SCENARIO?.ending) { this.dead = true; this.scene.start('EndingScene'); return; }
     const ed = SCENARIO.ending;
     const steps = [];
-    if (ed.monologue?.length)        steps.push(ed.monologue);
     if (ed.momotaro?.length)         steps.push(ed.momotaro);
     if (ed.ending_narration?.length) steps.push(ed.ending_narration);
     const runNext = (i) => {
-      if (i >= steps.length) { this.scene.start('EndingScene'); return; }
+      if (i >= steps.length) { this.dead = true; this.scene.start('EndingScene'); return; }
       this._dlgShow(steps[i], () => runNext(i + 1));
     };
     runNext(0);
