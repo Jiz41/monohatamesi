@@ -61,7 +61,7 @@ class TitleScene extends Phaser.Scene {
     /* ── タイトルメニュー ── */
     this._titleObjs = [];
     this._titleObjs.push(this.add.rectangle(W/2, H/2, W, H, 0x060c08).setDepth(0));
-    this._titleObjs.push(this.add.text(W/2, 170, '吉備津彦  鬼退治', {
+    this._titleObjs.push(this.add.text(W/2, 170, 'Kibitsu RE:act', {
       fontSize:'26px', color:'#ddcc44', fontFamily:'serif', fontStyle:'bold', stroke:'#000', strokeThickness:5
     }).setOrigin(0.5).setDepth(1));
     // TODO: clearedOnce フラグ実装後は百鬼夜行ボタンを { grey: !clearedOnce } に変更
@@ -316,7 +316,7 @@ class TitleScene extends Phaser.Scene {
       this.load.start();
     };
     loadIfMissing(['op_bg', 'title_logo'], () => {
-      this.add.text(W - 6, H - 6, 'v0.4.1.3', {
+      this.add.text(W - 6, H - 6, 'v0.4.1.4', {
         fontSize: '14px', color: '#00ff00', fontFamily: 'monospace'
       }).setOrigin(1, 1).setDepth(50);
       // テクスチャを再適用し、スケールを再計算
