@@ -225,29 +225,40 @@ class EndingScene extends Phaser.Scene {
   _playImgAnim(spec, onDone) {
     const IMG_H  = Math.round(H * 0.46); // 単体・ペア：画面高さの46%
     const IMG_H4 = Math.round(H * 0.33); // 4体横並び：33%
+    const OFFS   = [[-4,0],[4,0],[0,-4],[0,4],[-3,-3],[3,-3],[-3,3],[3,3]];
 
     const makeImg = (key, h) => {
       if (!this.textures.exists(key)) return null;
       const nat = this.textures.get(key).getSourceImage();
       if (!nat?.width) return null;
       const w = Math.round(nat.width * h / nat.height);
-      return this.add.image(0, H/2, key).setDisplaySize(w, h).setDepth(4);
+      const ol = OFFS.map(([dx, dy]) =>
+        this.add.image(0, H/2 + dy, key).setDisplaySize(w, h)
+          .setTintFill(0xffffff).setAlpha(0).setDepth(3)
+      );
+      const img = this.add.image(0, H/2, key).setDisplaySize(w, h).setDepth(4);
+      img._ol       = ol;
+      img._syncX    = () => OFFS.forEach(([dx], i) => ol[i].setX(img.x + dx));
+      img._showOl   = () => OFFS.forEach(([dx, dy], i) => { ol[i].setX(img.x + dx); ol[i].setAlpha(0.8); });
+      img._destroyAll = () => { ol.forEach(o => o.destroy()); img.destroy(); };
+      return img;
     };
 
     // ── キビツ：左から中央へスライドイン → フェードアウト ──
     if (spec.type === 'slide_single') {
       const img = makeImg(spec.key, IMG_H);
       if (!img) { this.time.delayedCall(IMG_ANIM_MS, onDone); return; }
-      this._curImgObjs = [img];
+      this._curImgObjs = [...img._ol, img];
       const startX = spec.dir === 'left'
         ? -(img.displayWidth / 2 + 20) : W + img.displayWidth / 2 + 20;
-      img.setX(startX);
+      img.setX(startX); img._showOl();
       this.tweens.add({
         targets: img, x: W / 2, duration: 800, ease: 'Sine.easeOut',
+        onUpdate: () => img._syncX(),
         onComplete: () => this.time.delayedCall(600, () => {
           this.tweens.add({
-            targets: img, alpha: 0, duration: 600,
-            onComplete: () => { img.destroy(); this._curImgObjs = null; onDone(); },
+            targets: [...img._ol, img], alpha: 0, duration: 600,
+            onComplete: () => { img._destroyAll(); this._curImgObjs = null; onDone(); },
           });
         }),
       });
@@ -256,21 +267,22 @@ class EndingScene extends Phaser.Scene {
     } else if (spec.type === 'slide_row') {
       const imgs = spec.keys.map(k => makeImg(k, IMG_H4)).filter(Boolean);
       if (!imgs.length) { this.time.delayedCall(IMG_ANIM_MS, onDone); return; }
-      this._curImgObjs = imgs;
+      this._curImgObjs = imgs.flatMap(img => [...img._ol, img]);
       const cols = imgs.length;
       const xs   = Array.from({ length: cols }, (_, i) => ((i + 0.5) / cols) * W);
-      imgs.forEach(img => img.setX(W + 200)); // 全て右端から出現
+      imgs.forEach(img => { img.setX(W + 200); img._showOl(); }); // 全て右端から出現
       let doneCount = 0;
       imgs.forEach((img, i) => {
         this.tweens.add({
           targets: img, x: xs[i], duration: 800, ease: 'Sine.easeOut',
+          onUpdate: () => img._syncX(),
           onComplete: () => {
             if (++doneCount === imgs.length) {
               this.time.delayedCall(600, () => {
                 this.tweens.add({
-                  targets: imgs, alpha: 0, duration: 600,
+                  targets: imgs.flatMap(img => [...img._ol, img]), alpha: 0, duration: 600,
                   onComplete: () => {
-                    imgs.forEach(o => o.destroy()); this._curImgObjs = null; onDone();
+                    imgs.forEach(img => img._destroyAll()); this._curImgObjs = null; onDone();
                   },
                 });
               });
@@ -283,36 +295,36 @@ class EndingScene extends Phaser.Scene {
     } else if (spec.type === 'slide_dual') {
       const [imgA, imgB] = spec.keys.map(k => makeImg(k, IMG_H));
       if (!imgA || !imgB) { this.time.delayedCall(IMG_ANIM_MS, onDone); return; }
-      this._curImgObjs = [imgA, imgB];
-      imgA.setX(-(imgA.displayWidth / 2 + 20));
-      imgB.setX(W + imgB.displayWidth / 2 + 20);
+      this._curImgObjs = [...imgA._ol, imgA, ...imgB._ol, imgB];
+      imgA.setX(-(imgA.displayWidth / 2 + 20)); imgA._showOl();
+      imgB.setX(W + imgB.displayWidth / 2 + 20); imgB._showOl();
       let doneCount = 0;
       const afterSlide = () => {
         if (++doneCount < 2) return;
         this.time.delayedCall(600, () => {
           this.tweens.add({
-            targets: [imgA, imgB], alpha: 0, duration: 600,
+            targets: [...imgA._ol, imgA, ...imgB._ol, imgB], alpha: 0, duration: 600,
             onComplete: () => {
-              imgA.destroy(); imgB.destroy(); this._curImgObjs = null; onDone();
+              imgA._destroyAll(); imgB._destroyAll(); this._curImgObjs = null; onDone();
             },
           });
         });
       };
-      this.tweens.add({ targets: imgA, x: W * 0.27, duration: 800, ease: 'Sine.easeOut', onComplete: afterSlide });
-      this.tweens.add({ targets: imgB, x: W * 0.73, duration: 800, ease: 'Sine.easeOut', onComplete: afterSlide });
+      this.tweens.add({ targets: imgA, x: W * 0.27, duration: 800, ease: 'Sine.easeOut', onUpdate: () => imgA._syncX(), onComplete: afterSlide });
+      this.tweens.add({ targets: imgB, x: W * 0.73, duration: 800, ease: 'Sine.easeOut', onUpdate: () => imgB._syncX(), onComplete: afterSlide });
 
     // ── 大嶽丸：中央からフェードイン → フェードアウト ──
     } else if (spec.type === 'fade_center') {
       const img = makeImg(spec.key, IMG_H);
       if (!img) { this.time.delayedCall(IMG_ANIM_MS, onDone); return; }
-      this._curImgObjs = [img];
-      img.setX(W / 2).setAlpha(0);
+      this._curImgObjs = [...img._ol, img];
+      img.setX(W / 2); img._showOl(); img.setAlpha(0);
       this.tweens.add({
-        targets: img, alpha: 1, duration: 800,
+        targets: [...img._ol, img], alpha: 1, duration: 800,
         onComplete: () => this.time.delayedCall(600, () => {
           this.tweens.add({
-            targets: img, alpha: 0, duration: 600,
-            onComplete: () => { img.destroy(); this._curImgObjs = null; onDone(); },
+            targets: [...img._ol, img], alpha: 0, duration: 600,
+            onComplete: () => { img._destroyAll(); this._curImgObjs = null; onDone(); },
           });
         }),
       });
