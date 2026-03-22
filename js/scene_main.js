@@ -33,6 +33,87 @@ class MainScene extends Phaser.Scene {
     this.load.audio('bgm_battle', 'audio/onisankochira.mp3');
     this.load.audio('bgm_shurai', 'audio/shurai.mp3');
     this.load.audio('bgm_boss5',  'audio/ushitoraMantra.mp3');
+
+    /* ── ローディング画面 ───────────────────────── */
+    const LD    = 50;                          // depth（ゲームオブジェクト全て上）
+    const BAR_W = 270, BAR_H = 14;
+    const BAR_X = (W - BAR_W) / 2;
+    const BAR_Y = H / 2 + 46;
+
+    const ldBg = this.add.rectangle(W/2, H/2, W, H, 0x000000).setDepth(LD);
+
+    // 「開闢支度中」静止部分（右端をW/2に揃える）
+    this.add.text(W/2 - 1, H/2 - 2, '開闢支度中', {
+      fontSize: '22px', fontFamily: '"Yuji Syuku", serif', color: '#ffffff',
+    }).setOrigin(1, 0.5).setDepth(LD + 1);
+
+    // 「…」フェード点滅部分（左端をW/2に揃える）
+    const ldDots = this.add.text(W/2 + 1, H/2 - 2, '…', {
+      fontSize: '22px', fontFamily: '"Yuji Syuku", serif', color: '#ffffff',
+    }).setOrigin(0, 0.5).setDepth(LD + 1);
+    this._ldDotsTw = this.tweens.add({
+      targets: ldDots, alpha: { from: 0.1, to: 1 },
+      duration: 900, yoyo: true, repeat: -1, ease: 'Sine.easeInOut',
+    });
+
+    // バー外枠
+    const ldBarBg = this.add.graphics().setDepth(LD + 1);
+    ldBarBg.lineStyle(1, 0x555555, 1);
+    ldBarBg.strokeRect(BAR_X - 1, BAR_Y - 1, BAR_W + 2, BAR_H + 2);
+
+    // バー塗り（進捗で伸びる）
+    const ldBarFill = this.add.graphics().setDepth(LD + 1);
+
+    // 小鬼（TitleSceneで先読み済み。左右反転で右向きに）
+    let ldOni = null;
+    if (this.textures.exists('oni-small')) {
+      const nat  = this.textures.get('oni-small').getSourceImage();
+      const oH   = 52;
+      const oW   = nat?.width > 0 ? Math.round(nat.width * oH / nat.height) : 36;
+      ldOni = this.add.image(BAR_X + BAR_W, BAR_Y - oH / 2 - 3, 'oni-small')
+        .setDisplaySize(oW, oH)
+        .setFlipX(true)   // 立ち絵は左向きのため反転して右向きに
+        .setDepth(LD + 2);
+    }
+
+    this._loadObjs = [ldBg, ldBarBg, ldBarFill, ldDots, ldOni].filter(Boolean);
+
+    // 進捗補間オブジェクト（tweenで滑らかに動かす）
+    const progObj = { val: 0 };
+    const drawBar = () => {
+      const p = Phaser.Math.Clamp(progObj.val, 0, 1);
+      ldBarFill.clear();
+      ldBarFill.fillStyle(0x55bb55, 1);
+      ldBarFill.fillRect(BAR_X, BAR_Y, Math.ceil(BAR_W * p), BAR_H);
+      if (ldOni) ldOni.setX(BAR_X + BAR_W * (1 - p)); // 右端(0)→左端(1)
+    };
+    drawBar(); // 初期描画
+
+    // progress イベント → tween補間でガクつき抑制
+    this.load.on('progress', (value) => {
+      this.tweens.killTweensOf(progObj);
+      this.tweens.add({ targets: progObj, val: value, duration: 350, ease: 'Power1', onUpdate: drawBar });
+    });
+
+    // 全ファイル読み込み完了 → バーを100%まで補間 → 小鬼が左端到達 → フェードアウト
+    this.load.on('complete', () => {
+      this.tweens.killTweensOf(progObj);
+      this.tweens.add({
+        targets: progObj, val: 1, duration: 300, ease: 'Power1',
+        onUpdate: drawBar,
+        onComplete: () => {
+          drawBar();
+          if (this._ldDotsTw) { this._ldDotsTw.stop(); this._ldDotsTw = null; }
+          const objs = this._loadObjs; this._loadObjs = null;
+          if (objs?.length) {
+            this.tweens.add({
+              targets: objs, alpha: 0, duration: 400,
+              onComplete: () => objs.forEach(o => o?.destroy?.()),
+            });
+          }
+        },
+      });
+    });
   }
 
   create() {

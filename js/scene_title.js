@@ -7,6 +7,7 @@ class TitleScene extends Phaser.Scene {
   preload() {
     this.load.image('op_bg',      'img/op.jpg');
     this.load.image('title_logo', 'img/title.png');
+    this.load.image('oni-small',  'img/oni-small.png'); // ローディング画面用に先読み
     this.load.audio('bgm_op',     'audio/kibitsureact.mp3');
     this.load.on('loaderror', (file) => {
       console.warn('load error:', file.key);
@@ -315,7 +316,7 @@ class TitleScene extends Phaser.Scene {
       this.load.start();
     };
     loadIfMissing(['op_bg', 'title_logo'], () => {
-      this.add.text(W - 6, H - 6, 'v0.4.0.0', {
+      this.add.text(W - 6, H - 6, 'v0.4.1.0', {
         fontSize: '14px', color: '#00ff00', fontFamily: 'monospace'
       }).setOrigin(1, 1).setDepth(50);
       // テクスチャを再適用し、スケールを再計算
