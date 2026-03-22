@@ -2,6 +2,11 @@
 
 const DEBUG = true; // 本番リリース時は false に
 
+/* ── BG ─────────────────────────────────────── */
+const BG_CHAPTER_COLORS = [0x1a2a4a, 0x3a1a4a, 0x4a1a1a, 0x2a2a2a, 0xd0d0d0];
+const BG_OVERLAY_ALPHA  = 0.4;
+const BG_GROUND_GRAD_H  = 70;
+
 /* ── Ultimate Data ──────────────────────────── */
 const ULTIMATE_DATA = [
   { id:'kaguya', name:'香山颪', yomi:'かぐやまおろし', unlockChapter:1, dmg:150 },
@@ -23,7 +28,8 @@ class MainScene extends Phaser.Scene {
     this.load.image('oni-shuten',   'img/oni-shuten.png');
     this.load.image('oni-otake',    'img/oni-otake.png');
     this.load.image('oni-soranaki', 'img/oni-soranaki.png');
-    this.load.image('battle_bg',    'img/back.png');
+    this.load.image('bg_sky',    'img/back_sky.png');
+    this.load.image('bg_ground', 'img/back_ground.png');
     this.load.audio('bgm_battle', 'audio/onisankochira.mp3');
     this.load.audio('bgm_shurai', 'audio/shurai.mp3');
     this.load.audio('bgm_boss5',  'audio/ushitoraMantra.mp3');
@@ -218,7 +224,22 @@ class MainScene extends Phaser.Scene {
 
   /* ── BG ─────────────────────────────────── */
   _bg() {
-    this.add.image(195, 165, 'battle_bg').setDisplaySize(390, 330).setDepth(0);
+    const skyNat    = this.textures.get('bg_sky').getSourceImage();
+    const groundNat = this.textures.get('bg_ground').getSourceImage();
+    const scale     = W / skyNat.width;
+    this._skyH      = Math.round(skyNat.height * scale);
+    const groundH   = Math.round(groundNat.height * scale);
+
+    // レイヤー1：空（奥）
+    this.add.image(W/2, this._skyH/2, 'bg_sky').setDisplaySize(W, this._skyH).setDepth(0);
+    // レイヤー2：地面（手前）
+    this.add.image(W/2, this._skyH + groundH/2, 'bg_ground').setDisplaySize(W, groundH).setDepth(1);
+
+    // 章別カラーオーバーレイ（空全体）
+    this.bgSkyOvl = this.add.rectangle(W/2, this._skyH/2, W, this._skyH, 0x000000, 0).setDepth(2);
+    // 地面上端グラデーション用 Graphics
+    this.bgGndGfx = this.add.graphics().setDepth(3);
+
     this.add.rectangle(W/2, UI_Y0 + UI_H/2, W, UI_H, 0x0c100c).setDepth(0);
     this.add.rectangle(W/2, UI_Y0 + 1, W, 3, 0x44664a).setDepth(0);
     // PAUSEボタン（戦闘エリア右上）
@@ -226,6 +247,18 @@ class MainScene extends Phaser.Scene {
     pBtnBg.fillStyle(0x000000, 0.6);
     pBtnBg.fillRoundedRect(355, 0, 30, 30, 4);
     this.add.text(370, 15, '≡', { fontSize:'18px', color:'#ffffff', fontFamily:'serif' }).setOrigin(0.5).setDepth(20);
+
+    this._bgChapterUp();
+  }
+
+  _bgChapterUp() {
+    const col = BG_CHAPTER_COLORS[Math.min(this.chapter - 1, BG_CHAPTER_COLORS.length - 1)];
+    this.bgSkyOvl.setFillStyle(col, BG_OVERLAY_ALPHA);
+    this.bgGndGfx.clear();
+    for (let i = 0; i < BG_GROUND_GRAD_H; i++) {
+      this.bgGndGfx.fillStyle(col, BG_OVERLAY_ALPHA * (1 - i / BG_GROUND_GRAD_H));
+      this.bgGndGfx.fillRect(0, this._skyH + i, W, 1);
+    }
   }
 
   /* ── Kibitsu ────────────────────────────── */
@@ -1511,7 +1544,8 @@ class MainScene extends Phaser.Scene {
     this.spawned = this.defeated = this.spawnTimer = 0;
     this.waveDone = this.bossSpawned = false;
     this._gridUp();
-    // 章をまたいだとき → 通常戦闘BGMに戻す
+    // 章をまたいだとき → 背景オーバーレイ更新 + 通常戦闘BGMに戻す
+    if (this.chapter !== prevChapter) this._bgChapterUp();
     if (this.bgmOn && this.bgmCurrent && this.chapter !== prevChapter) {
       const prev = this.bgmCurrent;
       this.bgmCurrent = null;
@@ -1814,6 +1848,7 @@ class MainScene extends Phaser.Scene {
       this.bgmCurrent = this.sound.add('bgm_battle', { loop: true, volume: this.bgmVol });
       this.bgmCurrent.play();
     }
+    this._bgChapterUp();
     this._hdrUp(); this._gridUp();
     this._dbgJumpUiHide();
   }
