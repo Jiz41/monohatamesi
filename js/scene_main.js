@@ -1011,12 +1011,14 @@ class MainScene extends Phaser.Scene {
   _bossIntroLock(onDone) {
     const chapIdx  = Math.min(this.chapter - 1, BOSS_NAMES_BY_CHAPTER.length - 1);
     const bossName = BOSS_NAMES_BY_CHAPTER[chapIdx];
-    const warnLine1 = this.chapter === 5 ? 'とてつもなく恐ろしい鬼の' : '恐ろしい鬼の';
+    const warnBody = this.chapter === 5
+      ? 'とてつもなく\n恐ろしい鬼の\n気配がする……'
+      : '恐ろしい鬼の\n気配がする……';
 
     this.dialogActive = true;
     const overlay = this.add.rectangle(W/2, BATTLE_H/2, W, BATTLE_H, 0x000000, 0).setDepth(50);
 
-    const warnTxt = this.add.text(W/2, BATTLE_H/2 - 20, `${warnLine1}\n気配がする……`, {
+    const warnTxt = this.add.text(W/2, BATTLE_H/2 - 20, warnBody, {
       fontSize: '22px', color: '#ff3333', fontFamily: 'serif', fontStyle: 'bold',
       stroke: '#000000', strokeThickness: 8, align: 'center', lineSpacing: 8,
     }).setOrigin(0.5).setAlpha(0).setDepth(51);
