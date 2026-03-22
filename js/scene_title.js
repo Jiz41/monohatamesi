@@ -63,16 +63,22 @@ class TitleScene extends Phaser.Scene {
     this._titleObjs.push(this.add.text(W/2, 170, '吉備津彦  鬼退治', {
       fontSize:'26px', color:'#ddcc44', fontFamily:'serif', fontStyle:'bold', stroke:'#000', strokeThickness:5
     }).setOrigin(0.5).setDepth(1));
+    // TODO: clearedOnce フラグ実装後は百鬼夜行ボタンを { grey: !clearedOnce } に変更
+    // const clearedOnce = false; // エンディング到達済みフラグ（未実装・プレースホルダー）
     this._menuBtns = [
-      { label:'はじめから', key:'new',  y:360 },
-      { label:'つづきから', key:'cont', y:470 },
-      { label:'オプション', key:'opts', y:580 },
+      { label:'はじめから', key:'new',         y:300 },
+      { label:'つづきから', key:'cont',        y:410 },
+      { label:'百鬼夜行',   key:'hyakkiyako',  y:520, crimson:true },
+      { label:'オプション', key:'opts',        y:630 },
     ].map(item => {
-      const grey = item.key === 'cont' && !this._hasSave;
-      const bg  = this.add.rectangle(W/2, item.y, 280, 70, grey ? 0x111111 : 0x0f1e10)
-                    .setStrokeStyle(2, grey ? 0x333333 : 0x44aa44).setDepth(1);
+      const grey    = item.key === 'cont' && !this._hasSave;
+      const bgCol   = grey ? 0x111111 : item.crimson ? 0x1a0000 : 0x0f1e10;
+      const strokeC = grey ? 0x333333 : item.crimson ? 0x660000 : 0x44aa44;
+      const txtCol  = grey ? '#444444' : item.crimson ? '#cc4444' : '#cceecc';
+      const bg  = this.add.rectangle(W/2, item.y, 280, 70, bgCol)
+                    .setStrokeStyle(2, strokeC).setDepth(1);
       const txt = this.add.text(W/2, item.y, item.label, {
-        fontSize:'22px', color: grey ? '#444444' : '#cceecc', fontFamily:'serif'
+        fontSize:'22px', color: txtCol, fontFamily:'serif'
       }).setOrigin(0.5).setDepth(2);
       this._titleObjs.push(bg, txt);
       return { bg, txt, key: item.key, grey, y: item.y };
@@ -309,7 +315,7 @@ class TitleScene extends Phaser.Scene {
       this.load.start();
     };
     loadIfMissing(['op_bg', 'title_logo'], () => {
-      this.add.text(W - 6, H - 6, 'v0.3.26.0', {
+      this.add.text(W - 6, H - 6, 'v0.4.0.0', {
         fontSize: '14px', color: '#00ff00', fontFamily: 'monospace'
       }).setOrigin(1, 1).setDepth(50);
       // テクスチャを再適用し、スケールを再計算
@@ -495,9 +501,10 @@ class TitleScene extends Phaser.Scene {
       for (const btn of this._menuBtns) {
         if (Math.abs(y - btn.y) < 38 && Math.abs(x - W/2) < 145) {
           if (btn.grey) return;
-          if (btn.key === 'new')  { deleteSave(); this.scene.start('MainScene', { type:'new' }); }
-          if (btn.key === 'cont') { this.scene.start('MainScene', { type:'continue' }); }
-          if (btn.key === 'opts') { this._setPhase('opts'); }
+          if (btn.key === 'new')         { deleteSave(); this.scene.start('MainScene', { type:'new' }); }
+          if (btn.key === 'cont')        { this.scene.start('MainScene', { type:'continue' }); }
+          if (btn.key === 'hyakkiyako')  { deleteSave(); this.scene.start('MainScene', { type:'new' }); }
+          if (btn.key === 'opts')        { this._setPhase('opts'); }
           return;
         }
       }
