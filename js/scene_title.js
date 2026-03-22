@@ -72,7 +72,7 @@ class TitleScene extends Phaser.Scene {
       { label:'百鬼夜行',   key:'hyakkiyako',  y:520, crimson:true },
       { label:'オプション', key:'opts',        y:630 },
     ].map(item => {
-      const grey    = item.key === 'cont' && !this._hasSave;
+      const grey    = (item.key === 'cont' && !this._hasSave) || item.key === 'hyakkiyako';
       const bgCol   = grey ? 0x111111 : item.crimson ? 0x1a0000 : 0x0f1e10;
       const strokeC = grey ? 0x333333 : item.crimson ? 0x660000 : 0x44aa44;
       const txtCol  = grey ? '#444444' : item.crimson ? '#cc4444' : '#cceecc';
@@ -316,7 +316,7 @@ class TitleScene extends Phaser.Scene {
       this.load.start();
     };
     loadIfMissing(['op_bg', 'title_logo'], () => {
-      this.add.text(W - 6, H - 6, 'v0.4.1.1', {
+      this.add.text(W - 6, H - 6, 'v0.4.1.2', {
         fontSize: '14px', color: '#00ff00', fontFamily: 'monospace'
       }).setOrigin(1, 1).setDepth(50);
       // テクスチャを再適用し、スケールを再計算

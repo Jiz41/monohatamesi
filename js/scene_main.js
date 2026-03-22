@@ -66,17 +66,25 @@ class MainScene extends Phaser.Scene {
 
     // 小鬼（TitleSceneで先読み済み。左右反転で右向きに）
     let ldOni = null;
+    let ldOniOutlines = [];
     if (this.textures.exists('oni-small')) {
       const nat  = this.textures.get('oni-small').getSourceImage();
       const oH   = 52;
       const oW   = nat?.width > 0 ? Math.round(nat.width * oH / nat.height) : 36;
-      ldOni = this.add.image(BAR_X + BAR_W, BAR_Y - oH / 2 - 3, 'oni-small')
+      const oniX = BAR_X + BAR_W;
+      const oniY = BAR_Y - oH / 2 - 3;
+      ldOniOutlines = [[-4,0],[4,0],[0,-4],[0,4],[-3,-3],[3,-3],[-3,3],[3,3]].map(([dx, dy]) =>
+        this.add.image(oniX + dx, oniY + dy, 'oni-small')
+          .setDisplaySize(oW, oH).setFlipX(true)
+          .setTintFill(0xffffff).setAlpha(0.8).setDepth(LD + 2)
+      );
+      ldOni = this.add.image(oniX, oniY, 'oni-small')
         .setDisplaySize(oW, oH)
         .setFlipX(true)   // 立ち絵は左向きのため反転して右向きに
-        .setDepth(LD + 2);
+        .setDepth(LD + 3);
     }
 
-    this._loadObjs = [ldBg, ldBarBg, ldBarFill, ldDots, ldOni].filter(Boolean);
+    this._loadObjs = [ldBg, ldBarBg, ldBarFill, ldDots, ...ldOniOutlines, ldOni].filter(Boolean);
 
     // 進捗補間オブジェクト（tweenで滑らかに動かす）
     const progObj = { val: 0 };
@@ -85,7 +93,12 @@ class MainScene extends Phaser.Scene {
       ldBarFill.clear();
       ldBarFill.fillStyle(0x55bb55, 1);
       ldBarFill.fillRect(BAR_X, BAR_Y, Math.ceil(BAR_W * p), BAR_H);
-      if (ldOni) ldOni.setX(BAR_X + BAR_W * (1 - p)); // 右端(0)→左端(1)
+      if (ldOni) {
+        const oniX = BAR_X + BAR_W * (1 - p);
+        ldOni.setX(oniX);
+        const offs = [[-4,0],[4,0],[0,-4],[0,4],[-3,-3],[3,-3],[-3,3],[3,3]];
+        ldOniOutlines.forEach((o, i) => o.setX(oniX + offs[i][0]));
+      }
     };
     drawBar(); // 初期描画
 
