@@ -309,7 +309,7 @@ class TitleScene extends Phaser.Scene {
       this.load.start();
     };
     loadIfMissing(['op_bg', 'title_logo'], () => {
-      this.add.text(W - 6, H - 6, 'v0.3.23', {
+      this.add.text(W - 6, H - 6, 'v0.3.24', {
         fontSize: '14px', color: '#00ff00', fontFamily: 'monospace'
       }).setOrigin(1, 1).setDepth(50);
       // テクスチャを再適用し、スケールを再計算
