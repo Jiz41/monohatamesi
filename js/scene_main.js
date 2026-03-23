@@ -232,7 +232,7 @@ class MainScene extends Phaser.Scene {
     // 通常戦闘BGM開始
     if (this.bgmOn) {
       this.bgmCurrent = this.sound.add('bgm_battle', { loop: true, volume: 0 });
-      if (DEBUG) console.log('[BGM] play key=bgm_battle');
+      if (DEBUG) this._dbgLog('[BGM] play key=bgm_battle');
       this.bgmCurrent.play();
       this.tweens.add({ targets: this.bgmCurrent, volume: this.bgmVol, duration: 1000 });
     }
@@ -323,7 +323,7 @@ class MainScene extends Phaser.Scene {
     // 空無童子：平和タイマー加算
     if (this.soranaki?.active && !this._sorClearDone) {
       this._sorPeaceMs += dt;
-      if (this._sorPeaceMs >= 180000) { if (DEBUG) console.log('[SOR] clear trigger'); this._sorClear(); }
+      if (this._sorPeaceMs >= 180000) { if (DEBUG) this._dbgLog('[SOR] clear trigger'); this._sorClear(); }
     }
 
     // wave clear（bossDeathSequenceによる二重発火防止、WAVE10はボス撃破のみ）
@@ -1142,19 +1142,18 @@ class MainScene extends Phaser.Scene {
   }
 
   _spawnBoss() {
-    if (DEBUG) console.log('[BOSS] 登場処理開始');
+    if (DEBUG) this._dbgLog('[BOSS] 登場処理開始');
     // ボス登場BGM切り替え
     if (this.bgmOn && this.bgmCurrent) {
       const bossBgmKey = this.chapter === 5 ? 'bgm_boss5' : 'bgm_shurai';
       const fadeMs     = this.chapter === 5 ? 1500 : 1000;
       const prev = this.bgmCurrent;
       this.bgmCurrent = null;
-      if (DEBUG) console.log(`[BGM] fade key=${prev.key}`);
+      if (DEBUG) this._dbgLog(`[BGM] fade key=${prev.key}`);
       this.tweens.add({ targets: prev, volume: 0, duration: fadeMs, onComplete: () => {
-        if (DEBUG) console.log(`[BGM] stop key=${prev.key}`);
+        if (DEBUG) this._dbgLog(`[BGM] stop→play key=${bossBgmKey}`);
         prev.stop();
         this.bgmCurrent = this.sound.add(bossBgmKey, { loop: true, volume: 0 });
-        if (DEBUG) console.log(`[BGM] play key=${bossBgmKey}`);
         this.bgmCurrent.play();
         this.tweens.add({ targets: this.bgmCurrent, volume: this.bgmVol, duration: fadeMs });
       }});
@@ -1371,9 +1370,9 @@ class MainScene extends Phaser.Scene {
         if (this.bgmOn && this.bgmCurrent) {
           const prev = this.bgmCurrent;
           this.bgmCurrent = null;
-          if (DEBUG) console.log(`[BGM] fade key=${prev.key}`);
+          if (DEBUG) this._dbgLog(`[BGM] fade key=${prev.key}`);
           this.tweens.add({ targets: prev, volume: 0, duration: 1500, onComplete: () => {
-            if (DEBUG) console.log(`[BGM] stop key=${prev.key}`);
+            if (DEBUG) this._dbgLog(`[BGM] stop key=${prev.key}`);
             prev.stop();
           }});
         }
@@ -1394,7 +1393,7 @@ class MainScene extends Phaser.Scene {
 
   _endingFlow() {
     // monologue完了後：降臨演出 → momotaro → ending_narration → EndingScene
-    if (!SCENARIO?.ending) { if (DEBUG) console.log('[SCENE] → EndingScene'); this.dead = true; this.scene.start('EndingScene'); return; }
+    if (!SCENARIO?.ending) { if (DEBUG) this._dbgLog('[SCENE] → EndingScene'); this.dead = true; this.scene.start('EndingScene'); return; }
     const ed = SCENARIO.ending;
 
     const runDialog = () => {
@@ -1402,7 +1401,7 @@ class MainScene extends Phaser.Scene {
       if (ed.momotaro?.length)         steps.push(ed.momotaro);
       if (ed.ending_narration?.length) steps.push(ed.ending_narration);
       const runNext = (i) => {
-        if (i >= steps.length) { if (DEBUG) console.log('[SCENE] → EndingScene'); this.dead = true; this.scene.start('EndingScene'); return; }
+        if (i >= steps.length) { if (DEBUG) this._dbgLog('[SCENE] → EndingScene'); this.dead = true; this.scene.start('EndingScene'); return; }
         this._dlgShow(steps[i], () => runNext(i + 1));
       };
       runNext(0);
@@ -1722,7 +1721,7 @@ class MainScene extends Phaser.Scene {
     const prevChapter = this.chapter;
     this.wave++;
     this.chapter = Math.ceil(this.wave / 10);
-    if (DEBUG) console.log(`[WAVE] wave=${this.wave} chapter=${this.chapter}`);
+    if (DEBUG) this._dbgLog(`[WAVE] wave=${this.wave} chapter=${this.chapter}`);
     this.spawned = this.defeated = this.spawnTimer = 0;
     this.waveDone = this.bossSpawned = false;
     this._gridUp();
@@ -1731,12 +1730,11 @@ class MainScene extends Phaser.Scene {
     if (this.bgmOn && this.bgmCurrent && this.chapter !== prevChapter) {
       const prev = this.bgmCurrent;
       this.bgmCurrent = null;
-      if (DEBUG) console.log(`[BGM] fade key=${prev.key}`);
+      if (DEBUG) this._dbgLog(`[BGM] fade key=${prev.key}`);
       this.tweens.add({ targets: prev, volume: 0, duration: 800, onComplete: () => {
-        if (DEBUG) console.log(`[BGM] stop key=${prev.key}`);
+        if (DEBUG) this._dbgLog('[BGM] stop→play key=bgm_battle');
         prev.stop();
         this.bgmCurrent = this.sound.add('bgm_battle', { loop: true, volume: 0 });
-        if (DEBUG) console.log('[BGM] play key=bgm_battle');
         this.bgmCurrent.play();
         this.tweens.add({ targets: this.bgmCurrent, volume: this.bgmVol, duration: 1000 });
       }});
@@ -1924,7 +1922,7 @@ class MainScene extends Phaser.Scene {
     this._dlgIdx = 0;
     this._dlgOnComplete = onComplete || null;
     this.dialogActive = true;
-    if (DEBUG) { this._dlgKey = lines[0]?.speaker || lines[0]?.text?.slice(0, 10) || '?'; console.log(`[DLG] start key=${this._dlgKey}`); }
+    if (DEBUG) { this._dlgKey = lines[0]?.speaker || lines[0]?.text?.slice(0, 10) || '?'; this._dbgLog(`[DLG] start key=${this._dlgKey}`); }
     this._dlgBg.setAlpha(0.92);
     this._dlgLine.setAlpha(1);
     this._dlgIndTween.resume();
@@ -1953,7 +1951,7 @@ class MainScene extends Phaser.Scene {
   }
 
   _dlgHide() {
-    if (DEBUG) console.log(`[DLG] end key=${this._dlgKey || '?'}`);
+    if (DEBUG) this._dbgLog(`[DLG] end key=${this._dlgKey || '?'}`);
     this.dialogActive = false;
     this._dlgBg.setAlpha(0);
     this._dlgLine.setAlpha(0);
@@ -1995,6 +1993,22 @@ class MainScene extends Phaser.Scene {
       this.add.text(W/2, 308, '閉じる', { fontSize:'12px', color:'#cc6644', fontFamily:'monospace' }).setOrigin(0.5).setDepth(62).setVisible(false)
     );
     this._dbgJumpVisible = false;
+
+    // ── オンスクリーンログ表示（右上 200×90） ──
+    const LOG_W = 200, LOG_H = 90, LOG_X = W - 2, LOG_Y = 52;
+    this._dbgLogBg = this.add.rectangle(W - LOG_W / 2 - 2, LOG_Y + LOG_H / 2, LOG_W + 4, LOG_H + 4, 0x000000, 0.55).setDepth(99);
+    this._dbgLogTxt = this.add.text(LOG_X, LOG_Y, '', {
+      fontSize: '10px', color: '#00ff88', fontFamily: 'monospace', align: 'right',
+      wordWrap: { width: LOG_W },
+    }).setOrigin(1, 0).setDepth(100);
+    this._dbgLogLines = [];
+  }
+
+  _dbgLog(msg) {
+    if (!this._dbgLogLines) return;
+    this._dbgLogLines.push(msg);
+    if (this._dbgLogLines.length > 5) this._dbgLogLines.shift();
+    this._dbgLogTxt.setText(this._dbgLogLines.join('\n'));
   }
 
   _dbgJumpToggle() {
