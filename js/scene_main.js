@@ -48,6 +48,7 @@ class MainScene extends Phaser.Scene {
     this.load.audio('se_boss_warning', ['audio/se_boss_warning.mp3', 'audio/se_boss_warning.wav']);
     this.load.audio('se_slot_open',    ['audio/se_slot_open.mp3',    'audio/se_slot_open.wav']);
     this.load.audio('se_exp_gain',     ['audio/se_exp_gain.mp3',     'audio/se_exp_gain.wav']);
+    this.load.audio('se_arrival',      'audio/se_arrival.mp3');
 
     /* ── ローディング画面 ───────────────────────── */
     const LD    = 50;                          // depth（ゲームオブジェクト全て上）
@@ -1420,6 +1421,7 @@ class MainScene extends Phaser.Scene {
       onComplete: () => pillar.destroy() });
 
     // 降下tween
+    if (this.seVol > 0) this.sound.play('se_arrival', { volume: 0.4 * this.seVol });
     this.tweens.add({
       targets: mmt, y: landY, duration: 2000, ease: 'Cubic.easeOut',
       onUpdate: () => OFFS.forEach(([, dy], i) => outlines[i].setY(mmt.y + dy)),
