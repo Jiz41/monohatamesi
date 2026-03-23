@@ -641,7 +641,7 @@ class MainScene extends Phaser.Scene {
 
   /* ── Charm pick ─────────────────────────── */
   _cpOpen(mode, slot) {
-    if (this.seVol > 0) this.sound.play('se_slot_open', { volume: 0.4 * this.seVol });
+    if (this.seVol > 0 && this.cache.audio.has('se_slot_open')) this.sound.play('se_slot_open', { volume: 0.4 * this.seVol });
     this._cpMode = mode; this._cpSlot = slot; this._cpVis = true;
     this.cpBg.setAlpha(0.97); this.cpTtl.setAlpha(1); this.cpCnl.setAlpha(1);
     this.cpFullMsg.setAlpha(0);
@@ -845,7 +845,8 @@ class MainScene extends Phaser.Scene {
     this._sorActionTaken();
     if (this.seVol > 0 && this.time.now - this._slashSeMs > 100) {
       this._slashSeMs = this.time.now;
-      this.sound.play(Math.random() < 0.5 ? 'se_slash_1' : 'se_slash_2', { volume: 0.4 * this.seVol });
+      const _seSlash = Math.random() < 0.5 ? 'se_slash_1' : 'se_slash_2';
+      if (this.cache.audio.has(_seSlash)) this.sound.play(_seSlash, { volume: 0.4 * this.seVol });
     }
     const t = list.reduce((a, b) => a.x < b.x ? a : b);
     const dmg = Math.round(this.slashDmg * this.combo);
@@ -890,7 +891,7 @@ class MainScene extends Phaser.Scene {
   _ultFire() {
     this._sorActionTaken();
     this.gauge = 0; this._gaugeUp();
-    if (this.seVol > 0) this.sound.play('se_ultimate', { volume: 0.4 * this.seVol });
+    if (this.seVol > 0 && this.cache.audio.has('se_ultimate')) this.sound.play('se_ultimate', { volume: 0.4 * this.seVol });
     const ult = ULTIMATE_DATA.find(u => u.id === this.selectedUltId);
     if (!ult) return;
     switch (ult.id) {
@@ -1151,8 +1152,9 @@ class MainScene extends Phaser.Scene {
       this.bgmCurrent = null;
       if (DEBUG) this._dbgLog(`[BGM] fade key=${prev.key}`);
       this.tweens.add({ targets: prev, volume: 0, duration: fadeMs, onComplete: () => {
-        if (DEBUG) this._dbgLog(`[BGM] stop→play key=${bossBgmKey}`);
         prev.stop();
+        if (this.waveDone) return;
+        if (DEBUG) this._dbgLog(`[BGM] stop→play key=${bossBgmKey}`);
         this.bgmCurrent = this.sound.add(bossBgmKey, { loop: true, volume: 0 });
         this.bgmCurrent.play();
         this.tweens.add({ targets: this.bgmCurrent, volume: this.bgmVol, duration: fadeMs });
@@ -1180,7 +1182,7 @@ class MainScene extends Phaser.Scene {
 
     this.dialogActive = true;
     this._introLock = true;
-    if (this.seVol > 0) this.sound.play('se_boss_warning', { volume: 0.4 * this.seVol });
+    if (this.seVol > 0 && this.cache.audio.has('se_boss_warning')) this.sound.play('se_boss_warning', { volume: 0.4 * this.seVol });
     const overlay = this.add.rectangle(W/2, BATTLE_H/2, W, BATTLE_H, 0x000000, 0).setDepth(50);
 
     const warnTxt = this.add.text(W/2, BATTLE_H/2 - 20, warnBody, {
@@ -1350,7 +1352,7 @@ class MainScene extends Phaser.Scene {
     if (this._sorShakeTimer)  { this._sorShakeTimer.remove(false);  this._sorShakeTimer  = null; }
     if (this._sorGlitchTimer) { this._sorGlitchTimer.remove(false); this._sorGlitchTimer = null; }
 
-    if (this.seVol > 0) this.sound.play('se_death_boss', { volume: 0.4 * this.seVol });
+    if (this.seVol > 0 && this.cache.audio.has('se_death_boss')) this.sound.play('se_death_boss', { volume: 0.4 * this.seVol });
 
     const s = this.soranaki;
     const targets = [s];
@@ -1429,7 +1431,7 @@ class MainScene extends Phaser.Scene {
       onComplete: () => pillar.destroy() });
 
     // 降下tween
-    if (this.seVol > 0) this.sound.play('se_arrival', { volume: 0.4 * this.seVol });
+    if (this.seVol > 0 && this.cache.audio.has('se_arrival')) this.sound.play('se_arrival', { volume: 0.4 * this.seVol });
     this.tweens.add({
       targets: mmt, y: landY, duration: 2000, ease: 'Cubic.easeOut',
       onUpdate: () => OFFS.forEach(([, dy], i) => outlines[i].setY(mmt.y + dy)),
@@ -1513,7 +1515,7 @@ class MainScene extends Phaser.Scene {
 
   /* ── Death FX: 小鬼・中鬼・大鬼 ──────────── */
   _deathFxSmall(oni, onComplete) {
-    if (this.seVol > 0) this.sound.play('se_death_small', { volume: 0.4 * this.seVol });
+    if (this.seVol > 0 && this.cache.audio.has('se_death_small')) this.sound.play('se_death_small', { volume: 0.4 * this.seVol });
     this._oniRmUI(oni);
     oni.setActive(false);
     this.tweens.add({
@@ -1561,7 +1563,7 @@ class MainScene extends Phaser.Scene {
   }
 
   _bossSandify(oni, onComplete) {
-    if (this.seVol > 0) this.sound.play('se_death_boss', { volume: 0.4 * this.seVol });
+    if (this.seVol > 0 && this.cache.audio.has('se_death_boss')) this.sound.play('se_death_boss', { volume: 0.4 * this.seVol });
     const texW = oni.width, texH = oni.height;
     const sprTop = oni.y - oni.hSz / 2;
     const count  = Phaser.Math.Between(40, 50);
@@ -1646,7 +1648,7 @@ class MainScene extends Phaser.Scene {
     if (oni.setTint) { oni.setTint(0xff4444); this.time.delayedCall(100, () => { if (oni?.active) oni.clearTint?.(); }); }
     if (oni.hp <= 0) {
       this.defeated++; this.totalExp += oni.exp;
-      if (oni.exp > 0 && this.seVol > 0) this.sound.play('se_exp_gain', { volume: 0.4 * this.seVol });
+      if (oni.exp > 0 && this.seVol > 0 && this.cache.audio.has('se_exp_gain')) this.sound.play('se_exp_gain', { volume: 0.4 * this.seVol });
       if (oni.isBoss) {
         if (!this.waveDone) this._bossDeathSequence(oni);
       } else {
@@ -1663,7 +1665,7 @@ class MainScene extends Phaser.Scene {
 
   _kbDmg(dmg) {
     if (this.dead) return;
-    if (this.seVol > 0) this.sound.play('se_kibitsu_damage', { volume: 0.4 * this.seVol });
+    if (this.seVol > 0 && this.cache.audio.has('se_kibitsu_damage')) this.sound.play('se_kibitsu_damage', { volume: 0.4 * this.seVol });
     this.kbHP = Math.max(0, this.kbHP - dmg);
     const r = this.kbHP / this.kbHPMax;
     this.kbHpBar.setDisplaySize(54 * r, 9).setFillStyle(r > 0.5 ? 0x22dd55 : r > 0.25 ? 0xddcc22 : 0xdd2222);
@@ -1744,7 +1746,7 @@ class MainScene extends Phaser.Scene {
   _gameOver() { this._stopBossTimers(); this.dead = true; deleteSave(); this._ov('GAME OVER', '#ff4444', 'タップしてリスタート'); }
 
   _ov(title, color, sub) {
-    if (title === 'WAVE CLEAR!' && this.seVol > 0) this.sound.play('se_wave_clear', { volume: 0.4 * this.seVol });
+    if (title === 'WAVE CLEAR!' && this.seVol > 0 && this.cache.audio.has('se_wave_clear')) this.sound.play('se_wave_clear', { volume: 0.4 * this.seVol });
     this.ovBg.setAlpha(0.55);
     this.ovTitle.setText(title).setStyle({ color, fontSize:'46px', fontFamily:'serif', fontStyle:'bold', stroke:'#000', strokeThickness:8 }).setAlpha(1);
     this.ovSub.setText(sub).setAlpha(1);
