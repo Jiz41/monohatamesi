@@ -2211,9 +2211,9 @@ class MainScene extends Phaser.Scene {
   _pauseBuild() {
     // 戦闘エリアのみ暗転
     this._pauseOv = this.add.rectangle(W/2, BATTLE_H/2, W, BATTLE_H, 0x000000, 0.7).setDepth(35).setVisible(false);
-    // 4項目を戦闘エリア中央に配置（50px間隔、計150px、中心 BATTLE_H/2=165）
-    const baseY = BATTLE_H / 2 - 75;
-    const labels = ['再開', '音楽 ●ON', '効果音 ●ON', 'タイトルへ'];
+    // 5項目を戦闘エリア中央に配置（50px間隔、中心 BATTLE_H/2=165）
+    const baseY = BATTLE_H / 2 - 100;
+    const labels = ['再開', '音楽 ●ON', '効果音 ●ON', 'タイトルへ', '書紀ヲ読む'];
     this._pauseItems = labels.map((lbl, i) =>
       this.add.text(W/2, baseY + i * 50, lbl, {
         fontSize:'24px', color:'#ffffff', fontFamily:'serif',
@@ -2275,8 +2275,8 @@ class MainScene extends Phaser.Scene {
       }
       return;
     }
-    const baseY = BATTLE_H / 2 - 75;
-    for (let i = 0; i < 4; i++) {
+    const baseY = BATTLE_H / 2 - 100;
+    for (let i = 0; i < 5; i++) {
       if (Math.abs(y - (baseY + i * 50)) < 22) {
         if (i === 0) { this._pauseClose(); }
         else if (i === 1) {
@@ -2309,6 +2309,9 @@ class MainScene extends Phaser.Scene {
           this._pauseConfVis = true;
           for (const t of this._pauseItems) t.setVisible(false);
           for (const t of this._pauseConfItems) t.setVisible(true);
+        }
+        else if (i === 4) {
+          window.openTutorial?.();
         }
         return;
       }

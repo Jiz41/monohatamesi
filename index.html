@@ -20,12 +20,38 @@
       align-items: center;
     }
     canvas { display: block; margin: auto; }
+
+    #tut-ov {
+      display: none;
+      position: fixed; inset: 0; z-index: 9999;
+      background: rgba(0,0,0,0.72);
+      align-items: center;
+      justify-content: center;
+    }
+    #tut-ov.open { display: flex; }
+    #tut-frm {
+      width: min(390px, 96vw);
+      height: min(844px, 96vh);
+      border: none;
+      display: block;
+    }
   </style>
 </head>
 <body>
+<div id="tut-ov">
+  <iframe id="tut-frm" src="tutorial.html"></iframe>
+</div>
 <script src="https://cdn.jsdelivr.net/npm/phaser@3.60.0/dist/phaser.min.js"></script>
 <script>
 'use strict';
+
+/* ── Tutorial overlay ───────────────────────── */
+function openTutorial() {
+  document.getElementById('tut-ov').classList.add('open');
+}
+function closeTutorial() {
+  document.getElementById('tut-ov').classList.remove('open');
+}
 
 /* ── Fullscreen on first tap ────────────────── */
 (function () {

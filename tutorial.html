@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Yuji+Syuku&display=swap" rel="stylesheet">
+  <title>書紀</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    html, body {
+      width: 100%; height: 100%;
+      overflow: hidden;
+      font-family: 'Yuji Syuku', serif;
+      color: #2c2c2c;
+    }
+
+    /* ─── 和紙テクスチャ ─────────────────────── */
+    body {
+      background-color: #e9dfc8;
+      position: relative;
+    }
+
+    /* 経年染み・繊維 */
+    body::before {
+      content: '';
+      position: fixed; inset: 0; z-index: 0; pointer-events: none;
+      background:
+        radial-gradient(ellipse 210px 160px at  6%  12%, rgba(140,100,40,0.15) 0%, transparent 100%),
+        radial-gradient(ellipse  90px  60px at 94%   5%, rgba(120, 80,20,0.11) 0%, transparent 100%),
+        radial-gradient(ellipse 170px  80px at 75%  96%, rgba(110, 70,15,0.13) 0%, transparent 100%),
+        radial-gradient(ellipse  55px  38px at 42%  52%, rgba(130, 90,30,0.07) 0%, transparent 100%),
+        radial-gradient(ellipse 100px  65px at 18%  80%, rgba(150,110,50,0.09) 0%, transparent 100%),
+        radial-gradient(ellipse  70px  45px at 85%  40%, rgba(120, 85,25,0.07) 0%, transparent 100%),
+        repeating-linear-gradient(
+          180deg,
+          transparent 0px, transparent 4px,
+          rgba(160,120,55,0.035) 4px, rgba(160,120,55,0.035) 5px
+        );
+    }
+
+    /* 外縁ヴィネット */
+    body::after {
+      content: '';
+      position: fixed; inset: 0; z-index: 0; pointer-events: none;
+      box-shadow:
+        inset 0 0  90px rgba(80,50,10,0.28),
+        inset 0 0  35px rgba(60,30, 0,0.16),
+        inset 0 0  10px rgba(40,20, 0,0.10);
+    }
+
+    /* ─── レイアウト ─────────────────────────── */
+    #wrap {
+      position: relative; z-index: 1;
+      width: 100%; height: 100%;
+      display: flex; flex-direction: column;
+    }
+
+    /* ─── ヘッダー ─────────────────────────── */
+    #hdr {
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 12px 44px 10px;
+      border-bottom: 1px solid rgba(80,50,10,0.30);
+      position: relative;
+    }
+
+    #page-title {
+      font-size: 19px;
+      letter-spacing: 0.15em;
+      color: #1a0e05;
+    }
+
+    #close-btn {
+      position: absolute; right: 12px; top: 50%; transform: translateY(-50%);
+      font-size: 22px; color: #4a3010; cursor: pointer;
+      opacity: 0.72; padding: 4px 8px; line-height: 1;
+      font-family: sans-serif;
+    }
+
+    /* ─── コンテンツ ─────────────────────────── */
+    #content {
+      flex: 1;
+      overflow: hidden;
+      min-height: 0;
+    }
+
+    .page { display: none; width: 100%; height: 100%; }
+    .page.active { display: block; }
+
+    /* ─── 縦書きページ（戦ノ心得・十ノ誓い） ─── */
+    .v-page {
+      writing-mode: vertical-rl;
+      text-orientation: mixed;
+      height: 100%;
+      overflow-x: auto; overflow-y: hidden;
+      padding: 20px 18px 16px;
+    }
+
+    .v-page p {
+      font-size: 15px;
+      line-height: 2.1;
+      letter-spacing: 0.05em;
+      margin-left: 6px;
+    }
+    .v-page p:first-child { margin-right: 2px; }
+
+    /* 十ノ誓い：八以降に控えめな余白 */
+    .vow-gap { margin-right: 1.6em; }
+
+    /* ─── 横書きページ（呪符座・属性ト呪い・鬼ノ記録） ─── */
+    .h-page {
+      height: 100%;
+      overflow-y: auto; overflow-x: hidden;
+      padding: 16px 20px 14px;
+    }
+
+    .h-page > p {
+      font-size: 15px;
+      line-height: 2.1;
+      letter-spacing: 0.04em;
+      margin-bottom: 10px;
+    }
+
+    /* ─── 状態異常リスト（属性ト呪い） ─── */
+    .status-list { margin-top: 10px; }
+
+    .status-row {
+      display: flex;
+      align-items: baseline;
+      gap: 10px;
+      margin-bottom: 2px;
+    }
+
+    .status-name {
+      flex-shrink: 0;
+      width: 2.2em;
+      font-size: 15px;
+      color: #1a0e05;
+    }
+
+    .status-desc {
+      font-size: 14px;
+      line-height: 1.95;
+      color: #2c2c2c;
+    }
+
+    /* ─── 鬼ノ記録 ─── */
+    .oni-entry { margin-bottom: 18px; }
+
+    .oni-name {
+      font-size: 17px;
+      color: #1a0e05;
+      letter-spacing: 0.06em;
+      margin-bottom: 3px;
+    }
+
+    .oni-desc {
+      font-size: 14px;
+      line-height: 2.0;
+      letter-spacing: 0.03em;
+    }
+
+    /* ─── ナビゲーション ─── */
+    #nav {
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 32px;
+      padding: 8px 0 10px;
+      border-top: 1px solid rgba(80,50,10,0.25);
+    }
+
+    #nav button {
+      background: none; border: none; cursor: pointer;
+      font-family: 'Yuji Syuku', serif;
+      font-size: 22px;
+      color: #4a3010;
+      padding: 4px 12px;
+      opacity: 0.80;
+    }
+    #nav button:disabled { opacity: 0.22; cursor: default; }
+
+    #page-ind {
+      font-size: 15px;
+      color: #4a3010;
+      letter-spacing: 0.1em;
+      min-width: 3em;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+<div id="wrap">
+
+  <!-- ヘッダー -->
+  <div id="hdr">
+    <span id="page-title">戦ノ心得</span>
+    <span id="close-btn" onclick="parent.closeTutorial()">×</span>
+  </div>
+
+  <!-- コンテンツ -->
+  <div id="content">
+
+    <!-- 1ページ: 戦ノ心得（縦書き） -->
+    <div class="page active">
+      <div class="v-page">
+        <p>斬撃ノ間を叩けば、我が太刀確かに鬼の肉を割く。</p>
+        <p>斬り続けることでその勢いは増し、刃ノ冴えは頂に達す。</p>
+        <p>されど、しばし呆けておれば切れ味はたちまち失せるなり。</p>
+        <p>鬼を斬るたびに、体ノ奥へ神通ノ力が満ちていく。</p>
+        <p>溜まりたる力は、奥義として解き放つことができる。</p>
+        <p>奥義は三つ。きっとこの道ノ果てに、その全てが明かされよう。</p>
+      </div>
+    </div>
+
+    <!-- 2ページ: 呪符座（横書き） -->
+    <div class="page">
+      <div class="h-page">
+        <p>呪符とは、地水火風、四大ノ力を宿した符にして、術を放つ際の媒介なり。</p>
+        <p>九つの座よりなる呪符座に符を据えれば、気が溜まり次第おのずと発動する。</p>
+        <p>一度装着した符を座より外せば、神域へ還るため消え手には戻らぬ。ゆめゆめ吟味すべし。</p>
+        <p>符は袋に最大三つまで携えられる。</p>
+        <p>鬼ノ進軍を越えるたびに新たな符を得る機会あり。</p>
+        <p>四大それぞれに単討・薙討・妨害、三の役割あり、符ノ種は十二となる。</p>
+        <p>いずれを座に据えるか、それがそのまま戦ノ形となる。</p>
+      </div>
+    </div>
+
+    <!-- 3ページ: 属性ト呪い（横書き） -->
+    <div class="page">
+      <div class="h-page">
+        <p>万物には四大ノ理が宿り、鬼もまた例外ではない。<br>
+        火は地を制し、地は風を制し、風は水を制し、水は火を制す。<br>
+        有利に攻めれば力は十全に、不利であれば半ばに削がれる。</p>
+
+        <div class="status-list">
+          <div class="status-row">
+            <span class="status-name">燃焼</span>
+            <span class="status-desc">火ノ祟り。時をかけて鬼ノ体を焼き続ける。大鬼にも通ずる。</span>
+          </div>
+          <div class="status-row">
+            <span class="status-name">根縛</span>
+            <span class="status-desc">地ノ祟り。鬼ノ足を大地に縫い付け、動きを封じる。大鬼には通じぬ。</span>
+          </div>
+          <div class="status-row">
+            <span class="status-name">昏倒</span>
+            <span class="status-desc">地ノ祟り。鬼ノ動きをしばし止める。大鬼には通じぬ。</span>
+          </div>
+          <div class="status-row">
+            <span class="status-name">吹飛</span>
+            <span class="status-desc">風ノ祟り。鬼を力ずくで弾き飛ばす。強き鬼には通じぬ。</span>
+          </div>
+          <div class="status-row">
+            <span class="status-name">緩怠</span>
+            <span class="status-desc">水ノ祟り。鬼ノ歩みを重くする。</span>
+          </div>
+          <div class="status-row">
+            <span class="status-name">凍結</span>
+            <span class="status-desc">水ノ祟り。鬼をその場に縫い付け、完全に封ずる。</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 4ページ: 鬼ノ記録（横書き） -->
+    <div class="page">
+      <div class="h-page">
+        <div class="oni-entry">
+          <div class="oni-name">温羅（うら）</div>
+          <div class="oni-desc">異国の鬼。身の丈四尺余り、炎のごとき赤髪、虎狼のごとき眼光。鬼ノ城を拠点に都へ向かう船を襲い、人を大釜で煮て喰らった。</div>
+        </div>
+        <div class="oni-entry">
+          <div class="oni-name">茨木童子（いばらきどうじ）</div>
+          <div class="oni-desc">人の子として生まれながら、鬼の形相を持ち捨てられた。酒呑童子の右腕として大江山に棲み、都で乱暴を振るった。</div>
+        </div>
+        <div class="oni-entry">
+          <div class="oni-name">酒呑童子（しゅてんどうじ）</div>
+          <div class="oni-desc">大江山の鬼ノ頭領。越後に生まれ、比叡山を追われ、山々を転々とした果てに大江山に根城を構えた。都の姫君を攫い、血の酒を飲んで宴を開いた。</div>
+        </div>
+        <div class="oni-entry">
+          <div class="oni-name">大嶽丸（おおだけまる）</div>
+          <div class="oni-desc">鈴鹿山に降臨した鬼神。酒呑童子・玉藻前と並び、日ノ本三大妖怪の一つに数えられる。飛行自在、暴風雨を起こし雷電を鳴らす。</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 5ページ: 十ノ誓い（縦書き） -->
+    <div class="page">
+      <div class="v-page">
+        <p>一、門番となりて、全ての鬼を斬り候。</p>
+        <p>二、鬼に慈悲は要らぬ。かくりよの門を明け渡してはならぬ。</p>
+        <p>三、斬り続けることで、刃の勢いは増す。</p>
+        <p>四、気が満ちたとき、奥義を解き放て。</p>
+        <p>五、符の座より外れた呪符は、還らぬ。</p>
+        <p>六、四大の理を知れば、鬼の弱みが見える。</p>
+        <p>七、鬼の進軍を越えるたびに、新たな符を得る。</p>
+        <p class="vow-gap">八、斬れぬは斬れる。斬れるは斬れぬ。</p>
+        <p>九、虚ろなものほどとくと観るべし。</p>
+        <p>十、解が無き事もある、それこそが解なり。</p>
+      </div>
+    </div>
+
+  </div><!-- /#content -->
+
+  <!-- ナビゲーション -->
+  <div id="nav">
+    <button id="btn-prev" onclick="changePage(-1)" disabled>＜</button>
+    <span id="page-ind">一</span>
+    <button id="btn-next" onclick="changePage(1)">＞</button>
+  </div>
+
+</div><!-- /#wrap -->
+
+<script>
+'use strict';
+const PAGE_TITLES = ['戦ノ心得', '呪符座（じゅふぐら）', '属性ト呪い', '鬼ノ記録', '十ノ誓い'];
+const PAGE_NUMS   = ['一', '二', '三', '四', '五'];
+const pages = document.querySelectorAll('.page');
+let cur = 0;
+
+function changePage(dir) {
+  pages[cur].classList.remove('active');
+  cur = Math.max(0, Math.min(pages.length - 1, cur + dir));
+  pages[cur].classList.add('active');
+  document.getElementById('page-title').textContent = PAGE_TITLES[cur];
+  document.getElementById('page-ind').textContent   = PAGE_NUMS[cur];
+  document.getElementById('btn-prev').disabled = cur === 0;
+  document.getElementById('btn-next').disabled = cur === pages.length - 1;
+}
+</script>
+</body>
+</html>
