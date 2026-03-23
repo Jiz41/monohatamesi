@@ -28,7 +28,7 @@ class MainScene extends Phaser.Scene {
     this.load.image('oni-shuten',   'img/oni-shuten.png');
     this.load.image('oni-otake',    'img/oni-otake.png');
     this.load.image('oni-soranaki', 'img/oni-soranaki.png');
-    this.load.image('momotaro',     'img/momotaro.png');
+    this.load.image('momotaro',     'img/???.png');
     this.load.image('bg_sky',    'img/back_sky.png');
     this.load.image('bg_ground', 'img/back_ground.png');
     this.load.audio('bgm_battle', 'audio/onisankochira.mp3');
