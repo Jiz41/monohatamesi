@@ -28,6 +28,7 @@ class MainScene extends Phaser.Scene {
     this.load.image('oni-shuten',   'img/oni-shuten.png');
     this.load.image('oni-otake',    'img/oni-otake.png');
     this.load.image('oni-soranaki', 'img/oni-soranaki.png');
+    this.load.image('momotaro',     'img/momotaro.png');
     this.load.image('bg_sky',    'img/back_sky.png');
     this.load.image('bg_ground', 'img/back_ground.png');
     this.load.audio('bgm_battle', 'audio/onisankochira.mp3');
@@ -1354,17 +1355,55 @@ class MainScene extends Phaser.Scene {
   }
 
   _endingFlow() {
-    // monologue完了後：momotaro → ending_narration → EndingScene
+    // monologue完了後：降臨演出 → momotaro → ending_narration → EndingScene
     if (!SCENARIO?.ending) { this.dead = true; this.scene.start('EndingScene'); return; }
     const ed = SCENARIO.ending;
-    const steps = [];
-    if (ed.momotaro?.length)         steps.push(ed.momotaro);
-    if (ed.ending_narration?.length) steps.push(ed.ending_narration);
-    const runNext = (i) => {
-      if (i >= steps.length) { this.dead = true; this.scene.start('EndingScene'); return; }
-      this._dlgShow(steps[i], () => runNext(i + 1));
+
+    const runDialog = () => {
+      const steps = [];
+      if (ed.momotaro?.length)         steps.push(ed.momotaro);
+      if (ed.ending_narration?.length) steps.push(ed.ending_narration);
+      const runNext = (i) => {
+        if (i >= steps.length) { this.dead = true; this.scene.start('EndingScene'); return; }
+        this._dlgShow(steps[i], () => runNext(i + 1));
+      };
+      runNext(0);
     };
-    runNext(0);
+
+    if (!ed.momotaro?.length) { runDialog(); return; }
+
+    // 桃太郎降臨演出
+    const mmH   = Math.round(BATTLE_H * 0.75);
+    const mmKey = 'momotaro';
+    const nat   = this.textures.exists(mmKey) ? this.textures.get(mmKey).getSourceImage() : null;
+    const mmW   = nat?.width > 0 ? Math.round(nat.width * mmH / nat.height) : mmH;
+    const mmX   = 195, landY = 165;
+    const OFFS  = [[-4,0],[4,0],[0,-4],[0,4],[-3,-3],[3,-3],[-3,3],[3,3]];
+
+    const outlines = OFFS.map(([dx, dy]) =>
+      this.add.image(mmX + dx, -200 + dy, mmKey)
+        .setDisplaySize(mmW, mmH).setTintFill(0xffffff).setAlpha(0.8).setDepth(3.9)
+    );
+    const mmt = this.add.image(mmX, -200, mmKey).setDisplaySize(mmW, mmH).setDepth(4);
+
+    // 光の柱（降下と同時にフェードアウト）
+    const pillar = this.add.rectangle(mmX, BATTLE_H / 2, 40, BATTLE_H, 0xffffff, 0.6).setDepth(3.8);
+    this.tweens.add({ targets: pillar, alpha: 0, duration: 2000,
+      onComplete: () => pillar.destroy() });
+
+    // 降下tween
+    this.tweens.add({
+      targets: mmt, y: landY, duration: 2000, ease: 'Cubic.easeOut',
+      onUpdate: () => OFFS.forEach(([, dy], i) => outlines[i].setY(mmt.y + dy)),
+      onComplete: () => {
+        // 浮遊ループ（mmt＋アウトライン）
+        this.tweens.add({
+          targets: [mmt, ...outlines], y: '+=8',
+          duration: 2000, ease: 'Sine.easeInOut', yoyo: true, repeat: -1,
+        });
+        runDialog();
+      },
+    });
   }
 
   _stopBossTimers() {
