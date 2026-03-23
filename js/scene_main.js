@@ -40,8 +40,10 @@ class MainScene extends Phaser.Scene {
     this.load.audio('se_charm_water',  'audio/se_charm_water.mp3');
     this.load.audio('se_charm_wind',   'audio/se_charm_wind.mp3');
     this.load.audio('se_charm_earth',  'audio/se_charm_earth.mp3');
-    this.load.audio('se_death_small',  'audio/se_death_small.mp3');
-    this.load.audio('se_death_boss',   'audio/se_death_boss.mp3');
+    this.load.audio('se_death_small',    'audio/se_death_small.mp3');
+    this.load.audio('se_death_boss',     'audio/se_death_boss.mp3');
+    this.load.audio('se_kibitsu_damage', 'audio/se_kibitsu_damage.mp3');
+    this.load.audio('se_ultimate',       'audio/se_ultimate.mp3');
 
     /* ── ローディング画面 ───────────────────────── */
     const LD    = 50;                          // depth（ゲームオブジェクト全て上）
@@ -881,6 +883,7 @@ class MainScene extends Phaser.Scene {
   _ultFire() {
     this._sorActionTaken();
     this.gauge = 0; this._gaugeUp();
+    if (this.seVol > 0) this.sound.play('se_ultimate', { volume: 0.4 * this.seVol });
     const ult = ULTIMATE_DATA.find(u => u.id === this.selectedUltId);
     if (!ult) return;
     switch (ult.id) {
@@ -1643,6 +1646,7 @@ class MainScene extends Phaser.Scene {
 
   _kbDmg(dmg) {
     if (this.dead) return;
+    if (this.seVol > 0) this.sound.play('se_kibitsu_damage', { volume: 0.4 * this.seVol });
     this.kbHP = Math.max(0, this.kbHP - dmg);
     const r = this.kbHP / this.kbHPMax;
     this.kbHpBar.setDisplaySize(54 * r, 9).setFillStyle(r > 0.5 ? 0x22dd55 : r > 0.25 ? 0xddcc22 : 0xdd2222);
