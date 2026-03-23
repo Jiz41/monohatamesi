@@ -195,7 +195,7 @@ class MainScene extends Phaser.Scene {
     this.bgmVol    = loadOpts().bgmVol;
     this.bgmOn     = this.bgmVol > 0;
     this.seVol      = loadOpts().seVol;
-    this._slashSeMs = 0;
+    this._seLastMs  = {};
     this.bgmCurrent = null;
     this.soranaki        = null;
     this._sorPeaceMs     = 0;
@@ -658,7 +658,7 @@ class MainScene extends Phaser.Scene {
 
   /* ── Charm pick ─────────────────────────── */
   _cpOpen(mode, slot) {
-    if (this.seVol > 0 && this.cache.audio.has('se_slot_open')) this.sound.play('se_slot_open', { volume: 0.4 * this.seVol });
+    this._sePlay('se_slot_open', 0.4 * this.seVol);
     this._cpMode = mode; this._cpSlot = slot; this._cpVis = true;
     this.cpBg.setAlpha(0.97); this.cpTtl.setAlpha(1); this.cpCnl.setAlpha(1);
     this.cpFullMsg.setAlpha(0);
@@ -860,11 +860,7 @@ class MainScene extends Phaser.Scene {
     const list = this.onis.getChildren().filter(o => o.active);
     if (!list.length) return;
     this._sorActionTaken();
-    if (this.seVol > 0 && this.time.now - this._slashSeMs > 100) {
-      this._slashSeMs = this.time.now;
-      const _seSlash = Math.random() < 0.5 ? 'se_slash_1' : 'se_slash_2';
-      if (this.cache.audio.has(_seSlash)) this.sound.play(_seSlash, { volume: 0.4 * this.seVol });
-    }
+    this._sePlay(Math.random() < 0.5 ? 'se_slash_1' : 'se_slash_2', 0.4 * this.seVol);
     const t = list.reduce((a, b) => a.x < b.x ? a : b);
     const dmg = Math.round(this.slashDmg * this.combo);
     this._oniDmg(t, dmg);
@@ -908,7 +904,7 @@ class MainScene extends Phaser.Scene {
   _ultFire() {
     this._sorActionTaken();
     this.gauge = 0; this._gaugeUp();
-    if (this.seVol > 0 && this.cache.audio.has('se_ultimate')) this.sound.play('se_ultimate', { volume: 0.4 * this.seVol });
+    this._sePlay('se_ultimate', 0.4 * this.seVol);
     const ult = ULTIMATE_DATA.find(u => u.id === this.selectedUltId);
     if (!ult) return;
     switch (ult.id) {
@@ -1044,7 +1040,7 @@ class MainScene extends Phaser.Scene {
     this._sorActionTaken();
     if (this.seVol > 0) {
       const seKey = `se_charm_${c.attr}`;
-      if (this.cache.audio.has(seKey)) this.sound.play(seKey, { volume: 0.4 * this.seVol });
+      this._sePlay(seKey, 0.4 * this.seVol);
     }
     fireCharm(c.id, this);
   }
@@ -1199,7 +1195,7 @@ class MainScene extends Phaser.Scene {
 
     this.dialogActive = true;
     this._introLock = true;
-    if (this.seVol > 0 && this.cache.audio.has('se_boss_warning')) this.sound.play('se_boss_warning', { volume: 0.4 * this.seVol });
+    this._sePlay('se_boss_warning', 0.4 * this.seVol);
     const overlay = this.add.rectangle(W/2, BATTLE_H/2, W, BATTLE_H, 0x000000, 0).setDepth(50);
 
     const warnTxt = this.add.text(W/2, BATTLE_H/2 - 20, warnBody, {
@@ -1453,7 +1449,7 @@ class MainScene extends Phaser.Scene {
     if (this._sorGlitchTimer) { this._sorGlitchTimer.remove(false); this._sorGlitchTimer = null; }
     if (this._sorClimaxTimer) { this._sorClimaxTimer.remove(false); this._sorClimaxTimer = null; }
 
-    if (this.seVol > 0 && this.cache.audio.has('se_death_boss')) this.sound.play('se_death_boss', { volume: 0.4 * this.seVol });
+    this._sePlay('se_death_boss', 0.4 * this.seVol);
 
     const s = this.soranaki;
     const targets = [s];
@@ -1532,7 +1528,7 @@ class MainScene extends Phaser.Scene {
       onComplete: () => pillar.destroy() });
 
     // 降下tween
-    if (this.seVol > 0 && this.cache.audio.has('se_arrival')) this.sound.play('se_arrival', { volume: 0.4 * this.seVol });
+    this._sePlay('se_arrival', 0.4 * this.seVol);
     this.tweens.add({
       targets: mmt, y: landY, duration: 2000, ease: 'Cubic.easeOut',
       onUpdate: () => OFFS.forEach(([, dy], i) => outlines[i].setY(mmt.y + dy)),
@@ -1616,7 +1612,7 @@ class MainScene extends Phaser.Scene {
 
   /* ── Death FX: 小鬼・中鬼・大鬼 ──────────── */
   _deathFxSmall(oni, onComplete) {
-    if (this.seVol > 0 && this.cache.audio.has('se_death_small')) this.sound.play('se_death_small', { volume: 0.4 * this.seVol });
+    this._sePlay('se_death_small', 0.4 * this.seVol);
     this._oniRmUI(oni);
     oni.setActive(false);
     this.tweens.add({
@@ -1664,7 +1660,7 @@ class MainScene extends Phaser.Scene {
   }
 
   _bossSandify(oni, onComplete) {
-    if (this.seVol > 0 && this.cache.audio.has('se_death_boss')) this.sound.play('se_death_boss', { volume: 0.4 * this.seVol });
+    this._sePlay('se_death_boss', 0.4 * this.seVol);
     const texW = oni.width, texH = oni.height;
     const sprTop = oni.y - oni.hSz / 2;
     const count  = Phaser.Math.Between(40, 50);
@@ -1749,7 +1745,7 @@ class MainScene extends Phaser.Scene {
     if (oni.setTint) { oni.setTint(0xff4444); this.time.delayedCall(100, () => { if (oni?.active) oni.clearTint?.(); }); }
     if (oni.hp <= 0) {
       this.defeated++; this.totalExp += oni.exp;
-      if (oni.exp > 0 && this.seVol > 0 && this.cache.audio.has('se_exp_gain')) this.sound.play('se_exp_gain', { volume: 0.4 * this.seVol });
+      if (oni.exp > 0) this._sePlay('se_exp_gain', 0.4 * this.seVol);
       if (oni.isBoss) {
         if (!this.waveDone) this._bossDeathSequence(oni);
       } else {
@@ -1766,7 +1762,7 @@ class MainScene extends Phaser.Scene {
 
   _kbDmg(dmg) {
     if (this.dead) return;
-    if (this.seVol > 0 && this.cache.audio.has('se_kibitsu_damage')) this.sound.play('se_kibitsu_damage', { volume: 0.4 * this.seVol });
+    this._sePlay('se_kibitsu_damage', 0.4 * this.seVol);
     this.kbHP = Math.max(0, this.kbHP - dmg);
     const r = this.kbHP / this.kbHPMax;
     this.kbHpBar.setDisplaySize(54 * r, 9).setFillStyle(r > 0.5 ? 0x22dd55 : r > 0.25 ? 0xddcc22 : 0xdd2222);
@@ -1847,7 +1843,7 @@ class MainScene extends Phaser.Scene {
   _gameOver() { this._stopBossTimers(); this.dead = true; deleteSave(); this._ov('GAME OVER', '#ff4444', 'タップしてリスタート'); }
 
   _ov(title, color, sub) {
-    if (title === 'WAVE CLEAR!' && this.seVol > 0 && this.cache.audio.has('se_wave_clear')) this.sound.play('se_wave_clear', { volume: 0.4 * this.seVol });
+    if (title === 'WAVE CLEAR!') this._sePlay('se_wave_clear', 0.4 * this.seVol);
     this.ovBg.setAlpha(0.55);
     this.ovTitle.setText(title).setStyle({ color, fontSize:'46px', fontFamily:'serif', fontStyle:'bold', stroke:'#000', strokeThickness:8 }).setAlpha(1);
     this.ovSub.setText(sub).setAlpha(1);
@@ -1946,6 +1942,15 @@ class MainScene extends Phaser.Scene {
   }
 
   /* ── Dialog box ─────────────────────────── */
+  _sePlay(key, vol) {
+    if (vol <= 0) return;
+    if (!this.cache.audio.has(key)) return;
+    const now = Date.now();
+    if (this._seLastMs[key] && now - this._seLastMs[key] < 150) return;
+    this._seLastMs[key] = now;
+    this.sound.play(key, { volume: vol });
+  }
+
   _dlgBuild() {
     // 戦闘エリア下部 120px のオーバーレイ
     const boxH = 120;
@@ -2026,8 +2031,6 @@ class MainScene extends Phaser.Scene {
     this._dlgOnComplete = onComplete || null;
     this.dialogActive = true;
     if (DEBUG) { this._dlgKey = lines[0]?.speaker || lines[0]?.text?.slice(0, 10) || '?'; this._dbgLog(`[DLG] start key=${this._dlgKey}`); }
-    this._dlgBg.setAlpha(0.92);
-    this._dlgLine.setAlpha(1);
     this._dlgIndTween.resume();
     this._dlgRender();
   }
@@ -2035,11 +2038,23 @@ class MainScene extends Phaser.Scene {
   _dlgRender() {
     const line = this._dlgLines[this._dlgIdx];
     if (line.speaker) {
+      // 通常セリフ: 黒背景・上端ライン・白文字
+      this._dlgBg.setFillStyle(0x000000).setAlpha(0.92);
+      this._dlgLine.setAlpha(1);
       this._dlgSpeakerTxt.setText(line.speaker).setAlpha(1);
-      this._dlgBodyTxt.setY(BATTLE_H - 88).setAlpha(1);
+      this._dlgBodyTxt
+        .setY(BATTLE_H - 88)
+        .setStyle({ fontSize: '15px', color: '#ffffff', fontFamily: 'serif', fontStyle: 'normal', stroke: '#000', strokeThickness: 2, wordWrap: { width: W - 28, useAdvancedWrap: true } })
+        .setAlpha(1);
     } else {
+      // ナレーション: 茶半透明背景・ラインなし・斜体セピア
+      this._dlgBg.setFillStyle(0x2a1200).setAlpha(0.78);
+      this._dlgLine.setAlpha(0);
       this._dlgSpeakerTxt.setAlpha(0);
-      this._dlgBodyTxt.setY(BATTLE_H - 100).setAlpha(1);
+      this._dlgBodyTxt
+        .setY(BATTLE_H - 104)
+        .setStyle({ fontSize: '15px', color: '#c8a87a', fontFamily: 'serif', fontStyle: 'italic', stroke: '#000', strokeThickness: 2, wordWrap: { width: W - 28, useAdvancedWrap: true } })
+        .setAlpha(1);
     }
     this._dlgBodyTxt.setText(line.text);
   }
@@ -2278,7 +2293,7 @@ class MainScene extends Phaser.Scene {
       if (this._ultLpTimer) { this._ultLpTimer.remove(false); this._ultLpTimer = null; }
       this._ultLpTimer = this.time.delayedCall(500, () => {
         this._ultLpTimer = null;
-        this._ultMenuOpen();
+        if (!this.dialogActive) this._ultMenuOpen();
       });
       return;
     }
@@ -2300,7 +2315,7 @@ class MainScene extends Phaser.Scene {
     // 大技ボタン短押し → 発動
     if (this._ultLpTimer) {
       this._ultLpTimer.remove(false); this._ultLpTimer = null;
-      if (this.gaugeReady && !this.paused) this._ultFire();
+      if (this.gaugeReady && !this.paused && !this.dialogActive) this._ultFire();
       return;
     }
     if (this._lpTimer) { this._lpTimer.remove(false); this._lpTimer = null; }
