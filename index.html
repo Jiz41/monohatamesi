@@ -11,6 +11,10 @@
   <link href="https://fonts.googleapis.com/css2?family=Yuji+Syuku&display=swap" rel="stylesheet">
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
+    :root {
+      --sat: env(safe-area-inset-top, 0px);
+      --sab: env(safe-area-inset-bottom, 0px);
+    }
     html, body {
       width: 100%; height: 100%;
       background: #000;
@@ -18,10 +22,10 @@
     }
     #game-container {
       position: fixed;
-      top: env(safe-area-inset-top);
+      top: var(--sat);
       left: 0;
       width: 100%;
-      height: calc(100% - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+      height: calc(100% - var(--sat) - var(--sab));
       background: #000;
     }
     canvas { display: block; margin: auto; }
@@ -50,6 +54,21 @@
 <script src="https://cdn.jsdelivr.net/npm/phaser@3.60.0/dist/phaser.min.js"></script>
 <script>
 'use strict';
+
+/* ── Safe area fallback (WKWebView) ─────────── */
+(function () {
+  if (!/iPhone|iPad/.test(navigator.userAgent) || window.MSStream) return;
+  const el = document.createElement('div');
+  el.style.paddingTop = 'env(safe-area-inset-top)';
+  document.body.appendChild(el);
+  const val = parseFloat(getComputedStyle(el).paddingTop);
+  document.body.removeChild(el);
+  if (val === 0 && window.screen.height >= 812) {
+    const r = document.documentElement.style;
+    r.setProperty('--sat', '44px');
+    r.setProperty('--sab', '34px');
+  }
+})();
 
 /* ── Tutorial overlay ───────────────────────── */
 function openTutorial() {
