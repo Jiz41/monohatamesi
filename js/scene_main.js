@@ -292,6 +292,9 @@ class MainScene extends Phaser.Scene {
       if (oni.isSoranaki) {
         oni._baseX -= oni.spd * (dt / 1000);
         this._oniSync(oni);
+        if (!this._sorClearDone && oni._baseX < -(oni.displayWidth / 2)) {
+          this._sorEscape();
+        }
         continue;
       }
       // stun countdown
@@ -1440,6 +1443,26 @@ class MainScene extends Phaser.Scene {
     this.time.delayedCall(67,  () => { if (rt.active) rt.x = ox[1]; });
     this.time.delayedCall(134, () => { if (rt.active) rt.x = ox[2]; });
     this.time.delayedCall(200, () => { if (rt.active) rt.destroy(); });
+  }
+
+  /* ── 空無童子：画面外逃走 → ゲームオーバー ─── */
+  _sorEscape() {
+    if (this._sorClearDone) return;
+    this._sorClearDone = true;
+    this.dead = true;
+
+    if (this._sorShakeTimer)  { this._sorShakeTimer.remove(false);  this._sorShakeTimer  = null; }
+    if (this._sorGlitchTimer) { this._sorGlitchTimer.remove(false); this._sorGlitchTimer = null; }
+    if (this._sorClimaxTimer) { this._sorClimaxTimer.remove(false); this._sorClimaxTimer = null; }
+    this._stopBossTimers();
+    deleteSave();
+
+    const msg = this.add.text(W / 2, BATTLE_H / 2, '門の外へ鬼が溢れ出した…', {
+      fontSize: '28px', fontFamily: '"Yuji Syuku", serif', color: '#ffffff',
+    }).setOrigin(0.5).setDepth(70).setAlpha(0);
+    this.tweens.add({ targets: msg, alpha: 1, duration: 1000, onComplete: () => {
+      this.time.delayedCall(3000, () => { this.scene.start('TitleScene'); });
+    }});
   }
 
   _sorClear() {
