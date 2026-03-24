@@ -211,9 +211,10 @@ class MainScene extends Phaser.Scene {
     this._sorKougunSprite  = null;
     this._sorKireSprites   = [];
     this._sorKireTimer     = null;
-    this._sorFlickerActive  = false;
-    this._sorTintTimer      = null;
-    this._sorFlickerTimer   = null;
+    this._sorFlickerActive   = false;
+    this._sorFlickerSavedVis = null;
+    this._sorTintTimer       = null;
+    this._sorFlickerTimer    = null;
     this._sorScanlineActive = false;
     this._sorScanlineGfx    = null;
     this._sorScanlineTimer  = null;
@@ -1405,7 +1406,8 @@ class MainScene extends Phaser.Scene {
   /* ── 実装4：色化け＋スプライトちらつき（伍→肆） ─── */
   _sorEffect4Start() {
     if (this._sorFlickerActive) return;
-    this._sorFlickerActive = true;
+    this._sorFlickerActive   = true;
+    this._sorFlickerSavedVis = null;
     const TINT_COLS = [0xff0088, 0x00ffcc, 0xffaa00, 0x8844ff, 0x00ff66, 0xff4400, 0x44aaff, 0xffff00];
     this._sorTintTimer = this.time.addEvent({
       delay: 1000, loop: true,
@@ -1416,14 +1418,19 @@ class MainScene extends Phaser.Scene {
     });
     const doFlicker = () => {
       if (!this._sorFlickerActive) return;
-      const sorParts = new Set([this.soranaki, this._sorKougunSprite, this._pauseOv,
-        ...(this.soranaki?.outlines || [])].filter(Boolean));
+      // 初回起動時：フリッカー対象を「現時点で visible=true のオブジェクト」に限定して記録
+      // こうすることで pauseOv / pauseItems 等の「本来非表示」オブジェクトを誤って表示しない
+      if (!this._sorFlickerSavedVis) {
+        const sorParts = new Set([this.soranaki, this._sorKougunSprite,
+          ...(this.soranaki?.outlines || [])].filter(Boolean));
+        this._sorFlickerSavedVis = this.children.list.filter(o => {
+          if (!o.active || !o.setVisible || sorParts.has(o) || o.depth >= 45) return false;
+          if (typeof o.y === 'number' && o.y >= BATTLE_H) return false;
+          return o.visible;
+        });
+      }
       const vis = Math.random() < 0.5;
-      this.children.list.forEach(o => {
-        if (!o.active || !o.setVisible || sorParts.has(o) || o.depth >= 45) return;
-        if (typeof o.y === 'number' && o.y >= BATTLE_H) return;
-        o.setVisible(vis);
-      });
+      this._sorFlickerSavedVis.forEach(o => { if (o.active) o.setVisible(vis); });
       this._sorFlickerTimer = this.time.delayedCall(Phaser.Math.Between(16, 32), doFlicker);
     };
     // ホワイトアウト消灯後（350ms）から開始し暗転を防ぐ
@@ -1436,9 +1443,11 @@ class MainScene extends Phaser.Scene {
     if (this._sorTintTimer)    { this._sorTintTimer.remove(false);    this._sorTintTimer    = null; }
     if (this._sorFlickerTimer) { this._sorFlickerTimer.remove(false); this._sorFlickerTimer = null; }
     this.cameras.main.clearTint();
-    this.children.list.forEach(o => {
-      if (o.active && typeof o.setVisible === 'function' && o !== this._pauseOv) o.setVisible(true);
-    });
+    // 記録されたオブジェクトのみ visible=true に戻す（非表示オブジェクトは触らない）
+    if (this._sorFlickerSavedVis) {
+      this._sorFlickerSavedVis.forEach(o => { if (o.active) o.setVisible(true); });
+      this._sorFlickerSavedVis = null;
+    }
     // kougun/soranaki 可視状態を再適用
     if (this._sorKougunSprite?.active) {
       this._sorKougunSprite.setVisible(this._sorKougunVisible);
