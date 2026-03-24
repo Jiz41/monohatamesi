@@ -1416,7 +1416,7 @@ class MainScene extends Phaser.Scene {
     });
     const doFlicker = () => {
       if (!this._sorFlickerActive) return;
-      const sorParts = new Set([this.soranaki, this._sorKougunSprite,
+      const sorParts = new Set([this.soranaki, this._sorKougunSprite, this._pauseOv,
         ...(this.soranaki?.outlines || [])].filter(Boolean));
       const vis = Math.random() < 0.5;
       this.children.list.forEach(o => {
@@ -1437,7 +1437,7 @@ class MainScene extends Phaser.Scene {
     if (this._sorFlickerTimer) { this._sorFlickerTimer.remove(false); this._sorFlickerTimer = null; }
     this.cameras.main.clearTint();
     this.children.list.forEach(o => {
-      if (o.active && typeof o.setVisible === 'function') o.setVisible(true);
+      if (o.active && typeof o.setVisible === 'function' && o !== this._pauseOv) o.setVisible(true);
     });
     // kougun/soranaki 可視状態を再適用
     if (this._sorKougunSprite?.active) {
@@ -1618,16 +1618,6 @@ class MainScene extends Phaser.Scene {
     if (step === 5) this._sorKireStart();
     if (step === 6) {
       this._sorKireStop();
-      // kire 終了後: 戦闘エリアオブジェクトの可視性を強制リセット
-      this.children.list.forEach(o => {
-        if (o.active && typeof o.setVisible === 'function' && o.depth < 45 &&
-            typeof o.y === 'number' && o.y < BATTLE_H) o.setVisible(true);
-      });
-      if (this._sorKougunSprite) this._sorKougunSprite.setVisible(this._sorKougunVisible);
-      if (this.soranaki) {
-        this.soranaki.setVisible(!this._sorKougunVisible);
-        this.soranaki.outlines?.forEach(o => o.setVisible(!this._sorKougunVisible));
-      }
       // ホワイトアウト消灯後（350ms）にエフェクト4開始
       this.time.delayedCall(350, () => {
         if (!this._sorClearDone && !this._sorFlickerActive) this._sorEffect4Start();
