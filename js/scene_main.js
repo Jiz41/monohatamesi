@@ -207,6 +207,10 @@ class MainScene extends Phaser.Scene {
     this._sorShakeTimer  = null;
     this._sorGlitchTimer = null;
     this._sorClimaxTimer = null;
+    this._sorKougunVisible = false;
+    this._sorKougunSprite  = null;
+    this._sorKireSprites   = [];
+    this._sorKireTimer     = null;
     this.selectedUltId = this.selectedUltId || 'kaguya';
     this._ultLpTimer   = null;
     this._ultMenuVis   = false;
@@ -331,6 +335,8 @@ class MainScene extends Phaser.Scene {
     // 空無童子：平和タイマー加算 + カウントダウン／グリッチ発火
     if (this.soranaki?.active && !this._sorClearDone) {
       this._sorPeaceMs += dt;
+      // kougun スプライト X 同期（毎フレーム）
+      if (this._sorKougunSprite?.active) this._sorKougunSprite.x = this.soranaki.x;
       // カウントダウン（18秒ごと：拾→壱）
       const _cStep = Math.floor(this._sorPeaceMs / 18000);
       if (_cStep > this._sorCountStep && _cStep <= 10) {
@@ -338,8 +344,14 @@ class MainScene extends Phaser.Scene {
         if (DEBUG) this._dbgLog('[SOR] clear trigger');
         this._sorCountdown(_cStep);
       }
-      // グリッチ（9秒オフセット・18秒ごと：カウントダウンの中間）
-      if (this._sorPeaceMs >= 9000) {
+      // グリッチ：拾〜陸（step<=5）は3000ms間隔、伍〜壱は9000msオフセット・18000ms間隔
+      if (this._sorCountStep <= 5) {
+        const _gStep = Math.floor(this._sorPeaceMs / 3000);
+        if (_gStep > this._sorGlitchStep) {
+          this._sorGlitchStep = _gStep;
+          this._sorGlitch();
+        }
+      } else if (this._sorPeaceMs >= 9000) {
         const _gStep = Math.floor((this._sorPeaceMs - 9000) / 18000) + 1;
         if (_gStep > this._sorGlitchStep && _gStep <= 10) {
           this._sorGlitchStep = _gStep;
@@ -1307,6 +1319,14 @@ class MainScene extends Phaser.Scene {
       }
     });
 
+    // kougun スプライト（初期非表示、ホワイトアウト時に切り替え）
+    this._sorKougunVisible = false;
+    this._sorKougunSprite = this.add.image(W, BATTLE_H / 2, 'kougun')
+      .setDisplaySize(W, BATTLE_H)
+      .setOrigin(0.5, 0.5)
+      .setDepth(3)
+      .setVisible(false);
+
     // グリッチ・カウントダウンはupdate()で管理（_sorGlitchTimer未使用）
   }
 
@@ -1316,7 +1336,50 @@ class MainScene extends Phaser.Scene {
       this._sorCountStep = 0;
       this._sorGlitchStep = 0;
       if (this._sorClimaxTimer) { this._sorClimaxTimer.remove(false); this._sorClimaxTimer = null; }
+      // kougun → soranaki に戻す
+      if (this._sorKougunSprite?.active) {
+        this._sorKougunVisible = false;
+        this._sorKougunSprite.setVisible(false);
+        this.soranaki.setVisible(true);
+        this.soranaki.outlines?.forEach(o => o.setVisible(true));
+      }
+      // kire チカチカ停止・消去
+      this._sorKireStop();
     }
+  }
+
+  /* ── 空無童子：kire チカチカ（陸→伍の18秒間） ─── */
+  _sorKireStart() {
+    if (this._sorKireSprites.length) return;
+    const count = Phaser.Math.Between(20, 30);
+    for (let i = 0; i < count; i++) {
+      this._sorKireSprites.push(
+        this.add.image(
+          Phaser.Math.Between(10, W - 10),
+          Phaser.Math.Between(10, BATTLE_H - 10),
+          'kire'
+        ).setDepth(53).setAlpha(0)
+      );
+    }
+    this._sorKireFlicker();
+  }
+
+  _sorKireFlicker() {
+    if (!this._sorKireSprites.length) return;
+    this._sorKireSprites.forEach(img => {
+      if (!img.active) return;
+      img.setAlpha(Math.random() < 0.65 ? Phaser.Math.FloatBetween(0.75, 1.0) : 0.1);
+    });
+    this._sorKireTimer = this.time.delayedCall(
+      Phaser.Math.Between(40, 280),
+      () => { if (this._sorKireSprites.length) this._sorKireFlicker(); }
+    );
+  }
+
+  _sorKireStop() {
+    if (this._sorKireTimer) { this._sorKireTimer.remove(false); this._sorKireTimer = null; }
+    this._sorKireSprites.forEach(img => { if (img.active) img.destroy(); });
+    this._sorKireSprites = [];
   }
 
   _sorGlitch() {
@@ -1365,7 +1428,20 @@ class MainScene extends Phaser.Scene {
     const KANJI = ['拾','玖','捌','柒','陸','伍','肆','参','弐','壱'];
     const num = KANJI[step - 1];
 
-    // ホワイトアウト（0.2s）と漢数字フェードアウト（1500ms）を同時開始
+    // ホワイトアウトピーク時に kougun ⇔ soranaki 切り替え（拾〜伍：step 1-6）
+    if (step <= 6 && this._sorKougunSprite?.active && this.soranaki?.active) {
+      this._sorKougunVisible = !this._sorKougunVisible;
+      this.soranaki.setVisible(!this._sorKougunVisible);
+      this.soranaki.outlines?.forEach(o => o.setVisible(!this._sorKougunVisible));
+      this._sorKougunSprite.setVisible(this._sorKougunVisible);
+    }
+
+    // 陸（step=5）→ kire チカチカ開始
+    if (step === 5) this._sorKireStart();
+    // 伍（step=6）→ kire チカチカ停止
+    if (step === 6) this._sorKireStop();
+
+    // ホワイトアウトフェード + 漢数字フェードアウト
     const wo = this.add.rectangle(W/2, BATTLE_H/2, W, BATTLE_H, 0xffffff, 1).setDepth(55);
     this.tweens.add({ targets: wo, alpha: 0, duration: 300, onComplete: () => wo.destroy() });
 
@@ -1454,6 +1530,8 @@ class MainScene extends Phaser.Scene {
     if (this._sorShakeTimer)  { this._sorShakeTimer.remove(false);  this._sorShakeTimer  = null; }
     if (this._sorGlitchTimer) { this._sorGlitchTimer.remove(false); this._sorGlitchTimer = null; }
     if (this._sorClimaxTimer) { this._sorClimaxTimer.remove(false); this._sorClimaxTimer = null; }
+    this._sorKireStop();
+    if (this._sorKougunSprite?.active) { this._sorKougunSprite.destroy(); this._sorKougunSprite = null; }
     this._stopBossTimers();
     deleteSave();
 
@@ -1473,6 +1551,8 @@ class MainScene extends Phaser.Scene {
     if (this._sorShakeTimer)  { this._sorShakeTimer.remove(false);  this._sorShakeTimer  = null; }
     if (this._sorGlitchTimer) { this._sorGlitchTimer.remove(false); this._sorGlitchTimer = null; }
     if (this._sorClimaxTimer) { this._sorClimaxTimer.remove(false); this._sorClimaxTimer = null; }
+    this._sorKireStop();
+    if (this._sorKougunSprite?.active) { this._sorKougunSprite.destroy(); this._sorKougunSprite = null; }
 
     this._sePlay('se_death_boss', 0.4 * this.seVol);
 
@@ -2190,6 +2270,8 @@ class MainScene extends Phaser.Scene {
     if (this._sorShakeTimer)  { this._sorShakeTimer.remove(false);  this._sorShakeTimer  = null; }
     if (this._sorGlitchTimer) { this._sorGlitchTimer.remove(false); this._sorGlitchTimer = null; }
     if (this._sorClimaxTimer) { this._sorClimaxTimer.remove(false); this._sorClimaxTimer = null; }
+    this._sorKireStop();
+    if (this._sorKougunSprite?.active) { this._sorKougunSprite.destroy(); this._sorKougunSprite = null; }
     for (const oni of [...this.onis.getChildren()]) { if (oni.active) { this._oniRmUI(oni); oni.destroy(); } }
     this.soranaki = null;
     const wic = ((this.wave - 1) % 10) + 1;
@@ -2202,6 +2284,8 @@ class MainScene extends Phaser.Scene {
     if (this._sorShakeTimer)  { this._sorShakeTimer.remove(false);  this._sorShakeTimer  = null; }
     if (this._sorGlitchTimer) { this._sorGlitchTimer.remove(false); this._sorGlitchTimer = null; }
     if (this._sorClimaxTimer) { this._sorClimaxTimer.remove(false); this._sorClimaxTimer = null; }
+    this._sorKireStop();
+    if (this._sorKougunSprite?.active) { this._sorKougunSprite.destroy(); this._sorKougunSprite = null; }
     for (const oni of [...this.onis.getChildren()]) { if (oni.active) { this._oniRmUI(oni); oni.destroy(); } }
     this.wave    = (ch - 1) * 10 + 1;
     this.chapter = ch;
@@ -2209,6 +2293,7 @@ class MainScene extends Phaser.Scene {
     this.waveDone = this.bossSpawned = false;
     this.soranaki = null; this._sorPeaceMs = 0; this._sorClearDone = false;
     this._sorCountStep = 0; this._sorGlitchStep = 0;
+    this._sorKougunVisible = false; this._sorKireSprites = [];
     if (this._sorClimaxTimer) { this._sorClimaxTimer.remove(false); this._sorClimaxTimer = null; }
     // BGM を通常戦闘に戻す
     if (this.bgmOn && this.bgmCurrent) {
