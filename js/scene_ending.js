@@ -101,6 +101,9 @@ class EndingScene extends Phaser.Scene {
 
     addRole('効果音');
     addName('OtoLogic'); addName('効果音ラボ'); addName('maruya328');
+    gap(60);
+
+    addRole('書体'); addName('怨霊／暗黒工房');
     gap(140);
 
     imgMark({ type: 'slide_row', keys: ['oni-small', 'oni-mid', 'oni-large', 'oni-ura'],
