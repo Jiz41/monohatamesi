@@ -11,10 +11,11 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          token: ${{ secrets.SYNC_PAT }}
 
       - name: Force push to monohatamesi
+        env:
+          SYNC_PAT: ${{ secrets.SYNC_PAT }}
         run: |
-          git config --global --unset-all http.https://github.com/.extraheader || true
-          git remote remove test || true
-          git remote add test https://Jiz41:${{ secrets.SYNC_PAT }}@github.com/Jiz41/monohatamesi.git
-          git push test HEAD:main --force
+          git remote set-url origin https://x-access-token:${SYNC_PAT}@github.com/Jiz41/kibitsureact.git
+          git push https://x-access-token:${SYNC_PAT}@github.com/Jiz41/monohatamesi.git HEAD:main --force
