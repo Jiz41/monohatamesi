@@ -142,6 +142,7 @@ const KB_X = 72, KB_Y = 190, KB_W = 42, KB_H = 64;
 <script src="js/scene_title.js"></script>
 <script src="js/scene_main.js"></script>
 <script src="js/scene_ending.js"></script>
+<script src="js/scene_hyakki.js"></script>
 
 <script>
 /* ── Phaser 起動 ────────────────────────────── */
@@ -155,7 +156,7 @@ fetch('scenario.json')
       width: W, height: H,
       resolution: window.devicePixelRatio || 1,
       backgroundColor: '#000000',
-      scene: [TitleScene, MainScene, EndingScene],
+      scene: [TitleScene, MainScene, EndingScene, HyakkiScene],
       scale: {
         mode: Phaser.Scale.FIT,
         autoCenter: Phaser.Scale.CENTER_BOTH

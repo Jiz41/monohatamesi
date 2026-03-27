@@ -318,7 +318,7 @@ class TitleScene extends Phaser.Scene {
       this.load.start();
     };
     loadIfMissing(['op_bg', 'title_logo'], () => {
-      this.add.text(W - 6, H - 6, 'v0.4.9.0', {
+      this.add.text(W - 6, H - 6, 'v0.4.9.1', {
         fontSize: '14px', color: '#00ff00', fontFamily: 'monospace'
       }).setOrigin(1, 1).setDepth(50);
       // テクスチャを再適用し、スケールを再計算
@@ -506,7 +506,7 @@ class TitleScene extends Phaser.Scene {
           if (btn.grey) return;
           if (btn.key === 'new')         { deleteSave(); this.scene.start('MainScene', { type:'new' }); }
           if (btn.key === 'cont')        { this.scene.start('MainScene', { type:'continue' }); }
-          if (btn.key === 'hyakkiyako')  { console.log('百鬼夜行 TODO'); }
+          if (btn.key === 'hyakkiyako')  { this.scene.start('HyakkiScene'); }
           if (btn.key === 'opts')        { this._setPhase('opts'); }
           return;
         }
