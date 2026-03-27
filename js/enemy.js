@@ -13,7 +13,8 @@ const NM_HP = 480, NM_SPD = 35, NM_DMG = 12;
 const OGRE_HP = 800, OGRE_SPD = 30, OGRE_DMG = 15;
 
 /* ── Boss ───────────────────────────────────── */
-const BOSS_HP = 3000, BOSS_SPD = 15, BOSS_DMG = 50;
+const BOSS_HP = [null, 3000, 4000, 5000, 6500, 6500]; // ch1-4 章別HP、ch5は不死のため参照しない
+const BOSS_SPD = 15, BOSS_DMG = 50;
 const BOSS_NAMES_BY_CHAPTER = ['温羅', '茨木童子', '酒呑童子', '大嶽丸', '空無童子'];
 
 /* ── Bullet ─────────────────────────────────── */

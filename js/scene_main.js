@@ -1326,7 +1326,8 @@ class MainScene extends Phaser.Scene {
     const attr = this.wave >= 2 ? attrPool[Phaser.Math.Between(0, 3)] : 'none';
     const sy = Phaser.Math.Between(160, 290);
     const bossDmg = (CHAPTER_DMG[this.chapter] || CHAPTER_DMG[1]).boss;
-    this._makeOni(W, sy, 56, 84, 0x220044, 0xff33ff, `【${name}】`, '13px', '#ff88ff', BOSS_HP, BOSS_SPD, bossDmg, 72, EXP_B, true, bossImg, attr);
+    const bossHp = BOSS_HP[Math.min(this.chapter, BOSS_HP.length - 1)];
+    this._makeOni(W, sy, 56, 84, 0x220044, 0xff33ff, `【${name}】`, '13px', '#ff88ff', bossHp, BOSS_SPD, bossDmg, 72, EXP_B, true, bossImg, attr);
     this.onis.getLast(true).isNamed = true;
 
     // ボス出現と同時に無限湧き：小鬼1500ms・中鬼4000ms、同時上限8体（EXP0）
