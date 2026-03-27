@@ -107,8 +107,24 @@ class TitleScene extends Phaser.Scene {
       return { key: item.key, trackY: item.trackY, trackX: TRACK_X, trackW: TRACK_W, lbl, track, knob };
     });
     this._dragging = null;
-    this._optsCnl = this.add.text(W/2, 630, '戻る', { fontSize:'18px', color:'#667766', fontFamily:'Arial' }).setOrigin(0.5).setDepth(2);
+
+    // データ消去ボタン
+    this._clrBtnBg = this.add.rectangle(W/2, 600, 280, 46, 0x1a0000).setStrokeStyle(2, 0xcc2222).setDepth(2);
+    this._clrBtnTxt = this.add.text(W/2, 600, 'データを全て消去する', { fontSize:'15px', color:'#FF4444', fontFamily:'serif', fontStyle:'bold' }).setOrigin(0.5).setDepth(3);
+    this._optsObjs.push(this._clrBtnBg, this._clrBtnTxt);
+
+    this._optsCnl = this.add.text(W/2, 700, '戻る', { fontSize:'18px', color:'#667766', fontFamily:'Arial' }).setOrigin(0.5).setDepth(2);
     this._optsObjs.push(this._optsCnl);
+
+    // データ消去確認ダイアログ（_optsObjs には含めない）
+    this._clrConfBg   = this.add.rectangle(W/2, H/2, W, H, 0x000000).setAlpha(0).setDepth(30);
+    this._clrConfTxt  = this.add.text(W/2, H/2 - 60, '本当に消去しますか？', { fontSize:'20px', color:'#ffffff', fontFamily:'serif', fontStyle:'bold', stroke:'#000', strokeThickness:3 }).setOrigin(0.5).setAlpha(0).setDepth(31);
+    this._clrYesBg    = this.add.rectangle(W/2 - 84, H/2 + 20, 140, 48, 0x330000).setStrokeStyle(2, 0xff3333).setAlpha(0).setDepth(30);
+    this._clrYesTxt   = this.add.text(W/2 - 84, H/2 + 20, 'YES', { fontSize:'17px', color:'#ff4444', fontFamily:'serif', fontStyle:'bold' }).setOrigin(0.5).setAlpha(0).setDepth(31);
+    this._clrNoBg     = this.add.rectangle(W/2 + 84, H/2 + 20, 140, 48, 0x001133).setStrokeStyle(2, 0x3355aa).setAlpha(0).setDepth(30);
+    this._clrNoTxt    = this.add.text(W/2 + 84, H/2 + 20, 'NO', { fontSize:'17px', color:'#8899cc', fontFamily:'serif', fontStyle:'bold' }).setOrigin(0.5).setAlpha(0).setDepth(31);
+    this._clrDoneTxt  = this.add.text(W/2, H/2, '消去しました', { fontSize:'22px', color:'#ffcc88', fontFamily:'serif', fontStyle:'bold', stroke:'#000', strokeThickness:3 }).setOrigin(0.5).setAlpha(0).setDepth(31);
+    this._clrConfVis  = false;
 
     // タイトル・オプションは初期非表示
     [...this._titleObjs, ...this._optsObjs].forEach(o => o.setAlpha(0));
@@ -318,7 +334,7 @@ class TitleScene extends Phaser.Scene {
       this.load.start();
     };
     loadIfMissing(['op_bg', 'title_logo'], () => {
-      this.add.text(W - 6, H - 6, 'v0.4.9.1', {
+      this.add.text(W - 6, H - 6, 'v0.4.9.2', {
         fontSize: '14px', color: '#00ff00', fontFamily: 'monospace'
       }).setOrigin(1, 1).setDepth(50);
       // テクスチャを再適用し、スケールを再計算
@@ -434,6 +450,8 @@ class TitleScene extends Phaser.Scene {
     this._opLogo.clearMask().setCrop().setAlpha(0);
     [this._opBg, this._opCreditTxt, this._opTapLbl].forEach(o => o.setAlpha(0));
     this._blinkStop();
+    // 確認ダイアログを閉じる
+    this._clrConfClose();
     // title/optsを全非表示にしてから対象だけ表示
     [...this._titleObjs, ...this._optsObjs].forEach(o => o.setAlpha(0));
     if (phase === 'title') {
@@ -442,6 +460,19 @@ class TitleScene extends Phaser.Scene {
       this._optsObjs.forEach(o => o.setAlpha(1));
       this._refreshOpts();
     }
+  }
+
+  _clrConfOpen() {
+    this._clrConfVis = true;
+    [this._clrConfBg, this._clrConfTxt, this._clrYesBg, this._clrYesTxt, this._clrNoBg, this._clrNoTxt]
+      .forEach(o => o.setAlpha(1));
+    this._clrConfBg.setAlpha(0.88);
+  }
+
+  _clrConfClose() {
+    this._clrConfVis = false;
+    [this._clrConfBg, this._clrConfTxt, this._clrYesBg, this._clrYesTxt, this._clrNoBg, this._clrNoTxt, this._clrDoneTxt]
+      .forEach(o => o.setAlpha(0));
   }
 
   _refreshOpts() {
@@ -515,7 +546,29 @@ class TitleScene extends Phaser.Scene {
 
     // オプション
     if (this._phase === 'opts') {
+      // 確認ダイアログが出ている場合は YES/NO のみ受け付ける
+      if (this._clrConfVis) {
+        if (Math.abs(x - (W/2 - 84)) < 74 && Math.abs(y - (H/2 + 20)) < 28) {
+          // YES：全データ削除
+          deleteSave();
+          try { localStorage.removeItem(OPTS_KEY); } catch(e) {}
+          try { localStorage.removeItem(CO_KEY);   } catch(e) {}
+          [this._clrConfBg, this._clrConfTxt, this._clrYesBg, this._clrYesTxt, this._clrNoBg, this._clrNoTxt]
+            .forEach(o => o.setAlpha(0));
+          this._clrDoneTxt.setAlpha(1);
+          this.time.delayedCall(1500, () => {
+            this._clrDoneTxt.setAlpha(0);
+            this._clrConfVis = false;
+            this._setPhase('title');
+          });
+        } else if (Math.abs(x - (W/2 + 84)) < 74 && Math.abs(y - (H/2 + 20)) < 28) {
+          // NO
+          this._clrConfClose();
+        }
+        return;
+      }
       if (Math.abs(y - this._optsCnl.y) < 28) { this._setPhase('title'); return; }
+      if (Math.abs(y - this._clrBtnBg.y) < 28) { this._clrConfOpen(); return; }
       for (const s of this._optSliders) {
         if (Math.abs(y - s.trackY) < 24) {
           this._dragging = s;

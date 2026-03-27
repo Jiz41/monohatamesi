@@ -1,5 +1,13 @@
 'use strict';
 
+/* ── Enemy base values ─────────────────────── */
+const HK_GRUNT = { baseHP: 160, baseDmg: 167 };
+const HK_NAMED = { baseHP: 480, baseDmg: 251 };
+const HK_OGRE  = { baseHP: 800, baseDmg: 334 };
+
+/* ── Background color table (50-wave bands) ── */
+const HK_BG_COLORS = [0x8B0000, 0x4A0000, 0x4A2000, 0x2A0040, 0x1A0010];
+
 class HyakkiScene extends Phaser.Scene {
   constructor() { super({ key: 'HyakkiScene' }); }
 
@@ -20,15 +28,27 @@ class HyakkiScene extends Phaser.Scene {
     this.playerDmgMult = 1.0;
     this.waveDone      = false;
 
-    this.dialogActive  = false;
-    this._dlgLines     = [];
-    this._dlgIdx       = 0;
+    this.dialogActive   = false;
+    this._dlgLines      = [];
+    this._dlgIdx        = 0;
     this._dlgOnComplete = null;
+    this._waveTimer     = null;
+    this._spawnTimer    = null;
+    this._enemies       = [];
 
-    /* ── 背景（漆黒） ────────────────────────── */
-    this.add.rectangle(W / 2, H / 2, W, H, 0x000000).setDepth(0);
+    /* ── 背景オーバーレイ ─────────────────────── */
+    this.bgOverlay = this.add.graphics().setDepth(0);
+    this._bgUp();
 
-    /* ── ダイアログUI構築 ─────────────────────── */
+    /* ── WAVE表示 ─────────────────────────────── */
+    this._waveTxt = this.add.text(W / 2, 12, '', {
+      fontSize: '18px', color: '#ffcc88',
+      fontFamily: 'serif', fontStyle: 'bold',
+      stroke: '#000000', strokeThickness: 3,
+    }).setOrigin(0.5, 0).setDepth(5);
+    this._waveUiUp();
+
+    /* ── ダイアログUI ─────────────────────────── */
     this._dlgBuild();
 
     /* ── タップ入力 ──────────────────────────── */
@@ -49,12 +69,90 @@ class HyakkiScene extends Phaser.Scene {
     this._dlgShow(openingLines, () => this._battleStart());
   }
 
-  /* ── 戦闘ループ開始（骨格のみ） ─────────────── */
-  _battleStart() {
-    // TODO: 1-B 以降で実装
+  /* ── 敵スケール式 ────────────────────────── */
+  _getScale(wave) {
+    return 1 + Math.sqrt(wave) * 0.3;
   }
 
-  update(_t, _dt) {}
+  /* ── 漢数字変換 ─────────────────────────── */
+  _toKanji(n) {
+    const units = ['', '一', '二', '三', '四', '五', '六', '七', '八', '九'];
+    const tens  = ['', '十', '二十', '三十', '四十', '五十',
+                   '六十', '七十', '八十', '九十'];
+    if (n < 10)  return units[n];
+    if (n < 100) return tens[Math.floor(n / 10)] + units[n % 10];
+    return String(n);
+  }
+
+  /* ── 戦闘ループ開始 ─────────────────────── */
+  _battleStart() {
+    // 30秒ごとにWAVE進行
+    this._waveTimer = this.time.addEvent({
+      delay: 30000, loop: true,
+      callback: () => {
+        this.wave++;
+        this._bgUp();
+        this._waveUiUp();
+      },
+    });
+
+    // 1500msごとにスポーン（同時8体上限）
+    this._spawnTimer = this.time.addEvent({
+      delay: 1500, loop: true,
+      callback: () => {
+        if (this._enemies.length < 8) this._spawnEnemy();
+      },
+    });
+  }
+
+  /* ── 敵スポーン ─────────────────────────── */
+  _spawnEnemy() {
+    const sc = this._getScale(this.wave);
+    let base;
+    if      (this.wave >= 80) base = HK_OGRE;
+    else if (this.wave >= 20) base = (Math.random() < 0.3) ? HK_NAMED : HK_GRUNT;
+    else                      base = HK_GRUNT;
+
+    const hp  = Math.round(base.baseHP  * sc);
+    const dmg = Math.round(base.baseDmg * sc);
+    const spd = 30 + this.wave * 0.5;
+    const sy  = Phaser.Math.Between(40, BATTLE_H - 20);
+    const col = base === HK_OGRE  ? 0xff8833
+              : base === HK_NAMED ? 0xcc88ff
+              :                     0xff4444;
+
+    const rect  = this.add.rectangle(W + 20, sy, 28, 28, col).setDepth(3);
+    const hpBar = this.add.rectangle(W + 20, sy - 20, 28, 4, 0x22dd55).setDepth(4);
+    this._enemies.push({ rect, hpBar, hp, maxHp: hp, dmg, spd });
+  }
+
+  /* ── 背景色更新 ─────────────────────────── */
+  _bgUp() {
+    const idx = Math.floor(((this.wave - 1) % 250) / 50);
+    this.bgOverlay.clear();
+    this.bgOverlay.fillStyle(HK_BG_COLORS[idx], 1);
+    this.bgOverlay.fillRect(0, 0, W, H);
+  }
+
+  /* ── WAVE UI更新 ─────────────────────────── */
+  _waveUiUp() {
+    this._waveTxt.setText(`第${this._toKanji(this.wave)}波`);
+  }
+
+  update(_t, dt) {
+    if (this.dialogActive) return;
+    for (let i = this._enemies.length - 1; i >= 0; i--) {
+      const e = this._enemies[i];
+      e.rect.x -= e.spd * (dt / 1000);
+      e.hpBar.x  = e.rect.x;
+      e.hpBar.y  = e.rect.y - 20;
+      if (e.rect.x < -30) {
+        e.rect.destroy();
+        e.hpBar.destroy();
+        this._enemies.splice(i, 1);
+      }
+    }
+  }
 
   /* ── Dialog ─────────────────────────────── */
   _dlgBuild() {
@@ -161,6 +259,13 @@ class HyakkiScene extends Phaser.Scene {
 
   /* ── Shutdown ───────────────────────────── */
   shutdown() {
+    if (this._waveTimer)  { this._waveTimer.remove(false);  this._waveTimer  = null; }
+    if (this._spawnTimer) { this._spawnTimer.remove(false); this._spawnTimer = null; }
+    for (const e of this._enemies) {
+      if (e.rect)  e.rect.destroy();
+      if (e.hpBar) e.hpBar.destroy();
+    }
+    this._enemies = [];
     this.tweens.killAll();
   }
 }
