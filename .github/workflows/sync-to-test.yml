@@ -14,5 +14,6 @@ jobs:
 
       - name: Force push to monohatamesi
         run: |
+          git config --global --unset-all http.https://github.com/.extraheader
           git remote add test https://Jiz41:${{ secrets.SYNC_PAT }}@github.com/Jiz41/monohatamesi.git
           git push test main --force
