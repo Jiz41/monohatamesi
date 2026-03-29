@@ -553,6 +553,7 @@ class HyakkiScene extends Phaser.Scene {
       onComplete: () => {
         const px = oni.x, py = oni.y;
         oni.destroy();
+        this._hdrUp();
         this._checkWaveClear();
         const count = Phaser.Math.Between(12, 15);
         for (let i = 0; i < count; i++) {
@@ -836,6 +837,7 @@ class HyakkiScene extends Phaser.Scene {
     const sy  = Phaser.Math.Between(160, 290);
     this.spawned++;
     this._makeOni(W + 20, sy, 28, 28, col, stk, name, fs, fc, hp, spd, dmg, bw, exp, false, imgKey, 'none');
+    this._hdrUp();
   }
 
   /* ── 10WAVE 休憩 ─────────────────────────── */
