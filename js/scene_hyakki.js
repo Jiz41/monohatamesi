@@ -1,9 +1,9 @@
 'use strict';
 
 /* ── HyakkiScene 敵定数 ────────────────────── */
-const HK_GRUNT = { baseHP: 160, baseDmg: 167 };
-const HK_NAMED = { baseHP: 480, baseDmg: 251 };
-const HK_OGRE  = { baseHP: 800, baseDmg: 334 };
+const HK_GRUNT = { baseHP: 120, baseDmg: 167 };
+const HK_NAMED = { baseHP: 360, baseDmg: 251 };
+const HK_OGRE  = { baseHP: 600, baseDmg: 334 };
 const HK_BG_COLORS  = [0x8B0000, 0x4A0000, 0x4A2000, 0x2A0040, 0x1A0010];
 const HK_BOSS_NAMES = ['温羅', '茨木童子', '酒呑童子', '大嶽丸'];
 const HK_BOSS_IMGS  = ['oni-ura', 'oni-ibaraki', 'oni-shuten', 'oni-otake'];
@@ -812,7 +812,7 @@ class HyakkiScene extends Phaser.Scene {
     }
 
     this._spawnTimer = this.time.addEvent({
-      delay: 1500, loop: true,
+      delay: 2000, loop: true,
       callback: () => {
         if (!this._restActive && this.onis.countActive(true) < 8) this._spawnEnemy();
       },
