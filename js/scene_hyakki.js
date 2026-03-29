@@ -45,6 +45,7 @@ class HyakkiScene extends Phaser.Scene {
     /* ── 初期ステータス ─────────────────────── */
     this.wave          = 1;
     this.spawned       = 0;
+    this.waveMax       = 20;
     this.kbHP          = 500;
     this.kbHPMax       = 500;
     this.slashDmg      = SL_BASE;
@@ -179,7 +180,13 @@ class HyakkiScene extends Phaser.Scene {
       }
       if (oni.stunTimer <= 0 && oni.knockTimer <= 0) oni.x -= oni.spd * (dt / 1000);
       this._oniSync(oni);
-      if (oni.x < KB_X) { this._kbDmg(oni.dmg); this._oniRm(oni); }
+      if (oni.x - KB_X <= 75) {
+        if (!oni.atkTimer) {
+          oni.atkTimer = this.time.addEvent({ delay: 2000, loop: true, callback: () => { if (oni.active) this._kbDmg(oni.dmg); } });
+        }
+      } else {
+        if (oni.atkTimer) { oni.atkTimer.remove(false); oni.atkTimer = null; }
+      }
     }
   }
 
@@ -263,7 +270,7 @@ class HyakkiScene extends Phaser.Scene {
   _hdrUp() {
     this.hpTxt.setText(`HP: ${this.kbHP}/${this.kbHPMax}`);
     this.expTxt.setText(`EXP: ${this.totalExp}`);
-    const waveMax   = 20;
+    const waveMax   = this.waveMax;
     const remaining = Math.max(0, waveMax - this.spawned) + this.onis.countActive(true);
     const isBoss    = this.wave % 50 === 0;
     this.eneCountTxt.setText(isBoss ? 'BOSS WAVE' : `${remaining}/${waveMax}`);
@@ -461,6 +468,7 @@ class HyakkiScene extends Phaser.Scene {
     body.burnTimer = 0; body.burnTick = 0;
     body.rootStacks = 0; body.rootTick = 0;
     body.stunTimer = 0; body.knockTimer = 0;
+    body.atkTimer  = null;
     this.onis.add(body);
   }
 
@@ -477,11 +485,13 @@ class HyakkiScene extends Phaser.Scene {
   }
 
   _oniRm(oni) {
+    oni.atkTimer?.remove(false); oni.atkTimer = null;
     oni.lbl?.destroy(); oni.hpBg?.destroy(); oni.hpFill?.destroy(); oni.attrLbl?.destroy();
     oni.outlines?.forEach(o => o.destroy()); oni.destroy();
   }
 
   _oniRmUI(oni) {
+    oni.atkTimer?.remove(false); oni.atkTimer = null;
     oni.lbl?.destroy();     oni.lbl     = null;
     oni.hpBg?.destroy();    oni.hpBg    = null;
     oni.hpFill?.destroy();  oni.hpFill  = null;
@@ -539,6 +549,7 @@ class HyakkiScene extends Phaser.Scene {
       onComplete: () => {
         const px = oni.x, py = oni.y;
         oni.destroy();
+        this._checkWaveClear();
         const count = Phaser.Math.Between(12, 15);
         for (let i = 0; i < count; i++) {
           const angle = Phaser.Math.FloatBetween(-Math.PI * 0.85, 0.05);
@@ -770,20 +781,21 @@ class HyakkiScene extends Phaser.Scene {
   }
 
   /* ── 戦闘ループ（百鬼夜行固有） ─────────── */
+  _checkWaveClear() {
+    if (this._restActive) return;
+    if (this.onis.countActive(true) === 0 && this.spawned >= this.waveMax) {
+      this.wave++;
+      this.spawned = 0;
+      this._bgUp();
+      this._waveUiUp();
+      if      (this.wave % 50 === 0) this._bossStart();
+      else if (this.wave % 10 === 0) this._restStart();
+    }
+  }
+
   _battleStart() {
     this._restActive = false;
-
-    this._waveTimer = this.time.addEvent({
-      delay: 30000, loop: true,
-      callback: () => {
-        this.wave++;
-        this.spawned = 0;
-        this._bgUp();
-        this._waveUiUp();
-        if      (this.wave % 50 === 0) this._bossStart();
-        else if (this.wave % 10 === 0) this._restStart();
-      },
-    });
+    this.waveMax     = 20;
 
     this._spawnTimer = this.time.addEvent({
       delay: 1500, loop: true,
