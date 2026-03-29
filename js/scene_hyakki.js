@@ -35,6 +35,7 @@ class HyakkiScene extends Phaser.Scene {
     aud('se_death_boss',     'audio/se_death_boss.mp3');
     aud('se_kibitsu_damage', 'audio/se_kibitsu_damage.mp3');
     aud('se_ultimate',       'audio/se_ultimate.mp3');
+    if (!this.cache.audio.has('bgm_battle'))       this.load.audio('bgm_battle',      'audio/onisankochira.mp3');
     if (!this.cache.audio.has('se_wave_clear'))   this.load.audio('se_wave_clear',   ['audio/se_wave_clear.mp3',   'audio/se_wave_clear.wav']);
     if (!this.cache.audio.has('se_boss_warning')) this.load.audio('se_boss_warning', ['audio/se_boss_warning.mp3', 'audio/se_boss_warning.wav']);
     if (!this.cache.audio.has('se_slot_open'))    this.load.audio('se_slot_open',    ['audio/se_slot_open.mp3',    'audio/se_slot_open.wav']);
@@ -83,6 +84,9 @@ class HyakkiScene extends Phaser.Scene {
     this._ultMenuVis         = false;
 
     const opts = loadOpts();
+    this.bgmVol     = opts.bgmVol ?? 0.7;
+    this.bgmOn      = this.bgmVol > 0;
+    this.bgmCurrent = null;
     this.seVol      = opts.seVol  ?? 0.8;
     this._seLastMs  = {};
 
@@ -191,7 +195,7 @@ class HyakkiScene extends Phaser.Scene {
   }
 
   /* ── スケール式 ──────────────────────────── */
-  _getScale(wave) { return 1 + Math.sqrt(wave) * 0.3; }
+  _getScale(wave) { return 1 + Math.sqrt(wave - 1) * 0.15; }
 
   /* ── 漢数字変換 ─────────────────────────── */
   _toKanji(n) {
@@ -797,6 +801,16 @@ class HyakkiScene extends Phaser.Scene {
     this._restActive = false;
     this.waveMax     = 20;
 
+    const _opBgm = this.sound.get('bgm_op');
+    if (_opBgm?.isPlaying) {
+      this.tweens.add({ targets: _opBgm, volume: 0, duration: 800, onComplete: () => { _opBgm.stop(); _opBgm.destroy(); } });
+    }
+    if (this.bgmOn) {
+      this.bgmCurrent = this.sound.add('bgm_battle', { loop: true, volume: 0 });
+      this.bgmCurrent.play();
+      this.tweens.add({ targets: this.bgmCurrent, volume: this.bgmVol, duration: 1000 });
+    }
+
     this._spawnTimer = this.time.addEvent({
       delay: 1500, loop: true,
       callback: () => {
@@ -1381,6 +1395,7 @@ class HyakkiScene extends Phaser.Scene {
     if (this._bossWarnShakeTimer) { this._bossWarnShakeTimer.remove(false); this._bossWarnShakeTimer = null; }
     if (this._waveTimer)  { this._waveTimer.remove(false);  this._waveTimer  = null; }
     if (this._spawnTimer) { this._spawnTimer.remove(false); this._spawnTimer = null; }
+    if (this.bgmCurrent)  { this.bgmCurrent.stop(); this.bgmCurrent.destroy(); this.bgmCurrent = null; }
     for (const oni of [...this.onis.getChildren()]) { if (oni.active) this._oniRm(oni); }
     this.tweens.killAll();
   }
